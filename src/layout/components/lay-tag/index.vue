@@ -565,7 +565,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="!showTags" ref="containerDom" class="tags-view">
+  <div v-if="false" ref="containerDom" class="tags-view">
     <span v-show="isShowArrow" class="arrow-left">
       <IconifyIconOffline :icon="ArrowLeftSLine" @click="handleScroll(200)" />
     </span>

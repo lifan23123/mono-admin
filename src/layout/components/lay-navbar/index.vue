@@ -24,7 +24,7 @@ const {
 </script>
 
 <template>
-  <div class="navbar bg-[#fff] shadow-xs shadow-[rgba(0,21,41,0.08)]">
+  <div class="navbar bg-transparent">
     <LaySidebarTopCollapse
       v-if="device === 'mobile'"
       class="hamburger-container"
@@ -32,10 +32,10 @@ const {
       @toggleClick="toggleSideBar"
     />
 
-    <LaySidebarBreadCrumb
+    <!-- <LaySidebarBreadCrumb
       v-if="layout !== 'mix' && device !== 'mobile'"
       class="breadcrumb-container"
-    />
+    /> -->
 
     <LayNavMix v-if="layout === 'mix'" />
 
@@ -46,11 +46,23 @@ const {
       <LaySidebarFullScreen id="full-screen" />
       <!-- 消息通知 -->
       <LayNotice id="header-notice" />
-      <!-- 退出登录 -->
       <el-dropdown trigger="click">
         <span class="el-dropdown-link navbar-bg-hover select-none">
           <img :src="userAvatar" :style="avatarsStyle" />
-          <p v-if="username" class="dark:text-white">{{ username }}</p>
+          <div class="user-info flex flex-col items-start mr-2">
+            <span
+              v-if="username"
+              class="username text-sm font-bold text-black leading-tight"
+              >{{ username }}</span
+            >
+            <span class="role text-[10px] text-blue-500 leading-tight"
+              >超级管理员</span
+            >
+          </div>
+          <IconifyIconOffline
+            icon="ep:arrow-down"
+            class="text-black text-[10px]"
+          />
         </span>
         <template #dropdown>
           <el-dropdown-menu class="logout">
@@ -77,14 +89,13 @@ const {
 
 <style lang="scss" scoped>
 .navbar {
-  width: 100%;
-  height: 48px;
+  height: 70px;
   overflow: hidden;
 
   .hamburger-container {
     float: left;
     height: 100%;
-    line-height: 48px;
+    line-height: 70px;
     cursor: pointer;
   }
 
@@ -93,26 +104,36 @@ const {
     align-items: center;
     justify-content: flex-end;
     min-width: 280px;
-    height: 48px;
+    height: 70px;
     color: #000000d9;
 
     .el-dropdown-link {
       display: flex;
       align-items: center;
       justify-content: space-around;
-      height: 48px;
-      padding: 10px;
+      height: 70px;
+      padding: 0 12px;
       color: #000000d9;
       cursor: pointer;
 
-      p {
+      .username {
         font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 2px;
+      }
+
+      .role {
+        font-size: 10px;
+        color: #007aff;
+        font-weight: 500;
       }
 
       img {
-        width: 22px;
-        height: 22px;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
+        object-fit: cover;
+        margin-right: 8px;
       }
     }
   }

@@ -40,7 +40,7 @@ const { title, getLogo } = useNav();
 .sidebar-logo-container {
   position: relative;
   width: 100%;
-  height: 48px;
+  height: 70px; /* 与 header 同高 */
   overflow: hidden;
 
   .sidebar-logo-link {
@@ -48,7 +48,7 @@ const { title, getLogo } = useNav();
     flex-wrap: nowrap;
     align-items: center;
     height: 100%;
-    padding-left: 10px;
+    padding-left: 16px;
 
     img {
       display: inline-block;
@@ -61,11 +61,12 @@ const { title, getLogo } = useNav();
       margin: 2px 0 0 12px;
       overflow: hidden;
       text-overflow: ellipsis;
-      font-size: 18px;
-      font-weight: 600;
+      font-size: 20px;
+      font-weight: 800;
       line-height: 32px;
-      color: var(--pure-theme-sub-menu-active-text);
+      color: #000;
       white-space: nowrap;
+      letter-spacing: 1px;
     }
   }
 }

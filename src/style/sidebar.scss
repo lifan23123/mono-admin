@@ -186,17 +186,17 @@
 
     .el-menu-item.is-active.nest-menu::before {
       position: absolute;
-      inset: 0 8px;
+      inset: 0 55px 0 5px; /* 左侧缩进5px，右侧缩进55px，整体再左移 */
       clear: both;
       margin: 4px 0;
       content: "";
       background: var(--el-color-primary) !important;
-      border-radius: 3px;
+      border-radius: 8px; /* 加大圆角使其更明显 */
     }
 
     .el-menu .el-menu--inline .el-sub-menu__title,
     & .el-sub-menu .el-menu-item {
-      min-width: $sideBarWidth !important;
+      min-width: auto !important; /* 取消强制最小宽度，允许二级菜单更短 */
       font-size: 14px;
       background-color: var(--pure-theme-sub-menu-bg) !important;
     }
@@ -558,7 +558,7 @@
 }
 
 body[layout="vertical"] {
-  $sideBarWidth: 210px;
+  $sideBarWidth: 240px;
 
   @include merge-style($sideBarWidth);
 
@@ -652,7 +652,7 @@ body[layout="horizontal"] {
 }
 
 body[layout="mix"] {
-  $sideBarWidth: 210px;
+  $sideBarWidth: 260px;
 
   @include merge-style($sideBarWidth);
 

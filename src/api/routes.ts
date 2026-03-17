@@ -6,5 +6,5 @@ type Result = {
 };
 
 export const getAsyncRoutes = () => {
-  return http.request<Result>("get", "/get-async-routes");
+  return Promise.resolve({ success: true, data: [] });
 };

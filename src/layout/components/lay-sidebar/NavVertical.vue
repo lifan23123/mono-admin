@@ -117,7 +117,7 @@ onBeforeUnmount(() => {
         />
       </el-menu>
     </el-scrollbar>
-    <LaySidebarCenterCollapse
+    <!-- <LaySidebarCenterCollapse
       v-if="device !== 'mobile' && (isShow || isCollapse)"
       :is-active="pureApp.sidebar.opened"
       @toggleClick="toggleSideBar"
@@ -126,7 +126,7 @@ onBeforeUnmount(() => {
       v-if="device !== 'mobile'"
       :is-active="pureApp.sidebar.opened"
       @toggleClick="toggleSideBar"
-    />
+    /> -->
   </div>
 </template>
 
