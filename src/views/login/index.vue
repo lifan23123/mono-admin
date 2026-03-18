@@ -91,12 +91,7 @@ useEventListener(document, "keydown", ({ code }) => {
   <div class="login-page">
     <!-- 左上角 Logo -->
     <div class="login-logo">
-      <img
-        src="@/assets/login/avatar.svg"
-        alt="MOMO"
-        class="login-logo-icon"
-      />
-      <span class="login-logo-text">MOMO</span>
+      <img src="@/assets/images/logo.png" alt="Logo" class="login-logo-icon" />
       <span class="login-logo-subtitle">后台管理系统</span>
     </div>
 
@@ -156,9 +151,9 @@ useEventListener(document, "keydown", ({ code }) => {
         <div class="login-agreement">
           <el-checkbox v-model="agreed" class="agreement-checkbox">
             我已阅读且同意
-            <a href="javascript:void(0)" class="agreement-link"
-              >用户协议</a
-            >和<a href="javascript:void(0)" class="agreement-link"
+            <a href="javascript:void(0)" class="agreement-link">用户协议</a>和<a
+              href="javascript:void(0)"
+              class="agreement-link"
               >隐私协议</a
             >
           </el-checkbox>
@@ -173,7 +168,9 @@ useEventListener(document, "keydown", ({ code }) => {
   position: relative;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #f0f4ff 0%, #e8edf8 40%, #f5f7fc 100%);
+  background: url("@/assets/images/login-background.png") no-repeat center
+    center;
+  background-size: cover;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -191,8 +188,8 @@ useEventListener(document, "keydown", ({ code }) => {
   z-index: 10;
 
   .login-logo-icon {
-    width: 40px;
-    height: 40px;
+    height: 52px;
+    object-fit: contain;
   }
 
   .login-logo-text {
@@ -203,7 +200,8 @@ useEventListener(document, "keydown", ({ code }) => {
   }
 
   .login-logo-subtitle {
-    font-size: 22px;
+    margin-top: 5px;
+    font-size: 32px;
     font-weight: 600;
     color: #333;
     letter-spacing: 1px;

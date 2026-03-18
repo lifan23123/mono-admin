@@ -2,6 +2,7 @@ import { storeToRefs } from "pinia";
 import { getConfig } from "@/config";
 import { emitter } from "@/utils/mitt";
 import Avatar from "@/assets/user.jpg";
+import Logo from "@/assets/images/logo.png";
 import { getTopMenu } from "@/router/utils";
 import { useFullscreen } from "@vueuse/core";
 import type { routeMetaType } from "../types";
@@ -117,13 +118,14 @@ export function useNav() {
   }
 
   /** 判断路径是否参与菜单 */
+  /** 判断路径是否参与菜单 */
   function isRemaining(path: string) {
     return remainingPaths.includes(path);
   }
 
   /** 获取`logo` */
   function getLogo() {
-    return new URL("/logo.svg", import.meta.url).href;
+    return Logo;
   }
 
   return {
