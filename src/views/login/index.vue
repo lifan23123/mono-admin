@@ -33,7 +33,7 @@ dataThemeChange(overallStyle.value);
 
 const ruleForm = reactive({
   username: "admin",
-  password: "admin123"
+  password: "123456"
 });
 
 const onLogin = async (formEl: FormInstance | undefined) => {
@@ -47,8 +47,8 @@ const onLogin = async (formEl: FormInstance | undefined) => {
       loading.value = true;
       useUserStoreHook()
         .loginByUsername({
-          username: ruleForm.username,
-          password: ruleForm.password
+          loginName: ruleForm.username,
+          pwd: ruleForm.password
         })
         .then(res => {
           if (res.success) {

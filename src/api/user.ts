@@ -36,7 +36,11 @@ export type RefreshTokenResult = {
 
 /** 登录 */
 export const getLogin = (data?: object) => {
-  return http.request<UserResult>("post", "/login", { data });
+  return http.request<any>("post", "/api/imchat/imsusermanager/login", {
+    data,
+    validateStatus: () => true,
+    responseType: "text"
+  });
 };
 
 /** 刷新`token` */
