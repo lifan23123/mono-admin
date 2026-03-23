@@ -18,11 +18,12 @@ import { message } from "@/utils/message";
 // 相关配置请参考：www.axios-js.com/zh-cn/docs/#axios-request-config-1
 const defaultConfig: AxiosRequestConfig = {
   // 请求超时时间
-  timeout: 10000,
+  timeout: 20000,
   headers: {
     Accept: "application/json, text/plain, */*",
     "Content-Type": "application/json",
-    "X-Requested-With": "XMLHttpRequest"
+    'companyId': '1',
+    // "X-Requested-With": "XMLHttpRequest"
   },
   // 数组格式参数序列化（https://github.com/axios/axios/issues/5142）
   paramsSerializer: {
@@ -109,16 +110,21 @@ class PureHttp {
           return config;
         }
 
-        // // 加密请求数据
-        // if (config.data && typeof config.data === "object") {
-        //   try {
-        //     const jsonStr = JSON.stringify(config.data);
-        //     config.data = await encrypt(jsonStr);
-        //     config.headers["Content-Type"] = "text/plain";
-        //   } catch (e) {
-        //     console.error("Request encryption failed", e);
-        //   }
-        // }
+        // 加密请求数据
+        if (config.data && typeof config.data === "object") {
+          try {
+            const jsonStr = JSON.stringify(config.data);
+            const encrypted = await encrypt(jsonStr);
+            config.data = encrypted;
+            // 防止 axios 默认 transformRequest 对字符串做额外处理
+            config.transformRequest = [data => data];
+            console.log("[DEBUG] 加密前:", jsonStr);
+            console.log("[DEBUG] 加密后:", encrypted);
+            console.log("[DEBUG] 请求头:", JSON.stringify(config.headers));
+          } catch (e) {
+            console.error("Request encryption failed", e);
+          }
+        }
 
         /** 请求白名单，放置一些不需要`token`的接口（通过设置请求白名单，防止`token`过期后再请求造成的死循环问题） */
         const whiteList = ["/refresh-token", "/login", "/imchat/imsusermanager/login"];
@@ -193,13 +199,13 @@ class PureHttp {
           }
         }
 
-        // 检查业务状态码
-        if (data && typeof data === "object" && data.success === false) {
-          const error: any = new Error(data.message || "请求失败");
-          error.response = response;
-          error.response.data = data;
-          return Promise.reject(error);
-        }
+        // // 检查业务状态码
+        // if (data && typeof data === "object" && data.success === false) {
+        //   const error: any = new Error(data.message || "请求失败");
+        //   error.response = response;
+        //   error.response.data = data;
+        //   return Promise.reject(error);
+        // }
 
         return data;
       },

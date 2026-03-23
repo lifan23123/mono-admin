@@ -38,8 +38,7 @@ export type RefreshTokenResult = {
 export const getLogin = (data?: object) => {
   return http.request<any>("post", "/api/imchat/imsusermanager/login", {
     data,
-    validateStatus: () => true,
-    responseType: "text"
+    responseType: 'text'
   });
 };
 
