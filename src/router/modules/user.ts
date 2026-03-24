@@ -8,6 +8,7 @@ export default {
   meta: {
     icon: "ri:user-settings-line",
     title: "用户管理",
+    roles: ["admin"],
     rank: 2
   },
   children: [
@@ -16,7 +17,8 @@ export default {
       name: "UserManagementIndex",
       component: () => import("@/views/userManagement/index.vue"),
       meta: {
-        title: "用户管理"
+        title: "用户管理",
+        roles: ["admin"]
       }
     }
   ]

@@ -79,7 +79,7 @@ function cleanBase64(str: string): string {
 export async function decrypt(encryptedText: string): Promise<string> {
   const key = await ensureKey();
   const cleaned = cleanBase64(encryptedText);
-  console.log("清理后的 Base64 前20字符:", cleaned.substring(0, 20));
+  // console.log("清理后的 Base64 前20字符:", cleaned.substring(0, 20));
   const encryptedBytes = Uint8Array.from(atob(cleaned), c =>
     c.charCodeAt(0)
   );

@@ -1,5 +1,3 @@
-// import "@/utils/sso";
-import Cookies from "js-cookie";
 import { getConfig } from "@/config";
 import NProgress from "@/utils/progress";
 import { buildHierarchyTree } from "@/utils/tree";
@@ -147,7 +145,7 @@ router.beforeEach((to: ToRouteType, _from, next) => {
   function toCorrectRoute() {
     whiteList.includes(to.fullPath) ? next(_from.fullPath) : next();
   }
-  if (Cookies.get(multipleTabsKey) && userInfo) {
+  if (storageLocal().getItem(multipleTabsKey) && userInfo) {
     // 无权限跳转403页面
     if (to.meta?.roles && !isOneOfArray(to.meta?.roles, userInfo?.roles)) {
       next({ path: "/error/403" });

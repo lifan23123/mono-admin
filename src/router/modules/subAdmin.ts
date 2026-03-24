@@ -8,6 +8,7 @@ export default {
   meta: {
     icon: "ri:admin-line",
     title: "子管理员",
+    roles: ["admin"],
     rank: 1
   },
   children: [
@@ -16,7 +17,8 @@ export default {
       name: "SubAdminIndex",
       component: () => import("@/views/subAdmin/index.vue"),
       meta: {
-        title: "子管理员"
+        title: "子管理员",
+        roles: ["admin"]
       }
     }
   ]

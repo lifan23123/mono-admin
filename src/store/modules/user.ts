@@ -1,34 +1,28 @@
 import { defineStore } from "pinia";
 import {
-  type userType,
   store,
   router,
   resetRouter,
   routerArrays,
   storageLocal
 } from "../utils";
-import {
-  type UserResult,
-  type RefreshTokenResult,
-  getLogin,
-  refreshTokenApi
-} from "@/api/user";
+import { getLogin } from "@/api/user";
 import { useMultiTagsStoreHook } from "./multiTags";
-import { type DataInfo, setToken, removeToken, userKey } from "@/utils/auth";
+import { setToken, removeToken, userKey } from "@/utils/auth";
 
 export const useUserStore = defineStore("pure-user", {
-  state: (): userType => ({
+  state: (): any => ({
     // 头像
-    avatar: storageLocal().getItem<DataInfo<number>>(userKey)?.avatar ?? "",
+    avatar: storageLocal().getItem<any>(userKey)?.avatar ?? "",
     // 用户名
-    username: storageLocal().getItem<DataInfo<number>>(userKey)?.username ?? "",
+    username: storageLocal().getItem<any>(userKey)?.username ?? "",
     // 昵称
-    nickname: storageLocal().getItem<DataInfo<number>>(userKey)?.nickname ?? "",
+    nickname: storageLocal().getItem<any>(userKey)?.nickname ?? "",
     // 页面级别权限
-    roles: storageLocal().getItem<DataInfo<number>>(userKey)?.roles ?? [],
+    roles: storageLocal().getItem<any>(userKey)?.roles ?? [],
     // 按钮级别权限
     permissions:
-      storageLocal().getItem<DataInfo<number>>(userKey)?.permissions ?? [],
+      storageLocal().getItem<any>(userKey)?.permissions ?? [],
     // 是否勾选了登录页的免登录
     isRemembered: false,
     // 登录页的免登录存储几天，默认7天
@@ -65,9 +59,10 @@ export const useUserStore = defineStore("pure-user", {
     },
     /** 登入 */
     async loginByUsername(data) {
-      return new Promise<UserResult>((resolve, reject) => {
+      return new Promise<any>((resolve, reject) => {
         getLogin(data)
           .then(data => {
+            console.log(data, "setData");
             if (data?.success) setToken(data.data);
             resolve(data);
           })
@@ -85,21 +80,6 @@ export const useUserStore = defineStore("pure-user", {
       useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
       resetRouter();
       router.push("/login");
-    },
-    /** 刷新`token` */
-    async handRefreshToken(data) {
-      return new Promise<RefreshTokenResult>((resolve, reject) => {
-        refreshTokenApi(data)
-          .then(data => {
-            if (data) {
-              setToken(data.data);
-              resolve(data);
-            }
-          })
-          .catch(error => {
-            reject(error);
-          });
-      });
     }
   }
 });

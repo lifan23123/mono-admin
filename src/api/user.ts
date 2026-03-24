@@ -1,48 +1,57 @@
 import { http } from "@/utils/http";
 
-export type UserResult = {
-  success: boolean;
-  data: {
-    /** 头像 */
-    avatar: string;
-    /** 用户名 */
-    username: string;
-    /** 昵称 */
-    nickname: string;
-    /** 当前登录用户的角色 */
-    roles: Array<string>;
-    /** 按钮级别权限 */
-    permissions: Array<string>;
-    /** `token` */
-    accessToken: string;
-    /** 用于调用刷新`accessToken`的接口时所需的`token` */
-    refreshToken: string;
-    /** `accessToken`的过期时间（格式'xxxx/xx/xx xx:xx:xx'） */
-    expires: Date;
-  };
-};
-
-export type RefreshTokenResult = {
-  success: boolean;
-  data: {
-    /** `token` */
-    accessToken: string;
-    /** 用于调用刷新`accessToken`的接口时所需的`token` */
-    refreshToken: string;
-    /** `accessToken`的过期时间（格式'xxxx/xx/xx xx:xx:xx'） */
-    expires: Date;
-  };
-};
-
 /** 登录 */
 export const getLogin = (data?: object) => {
   return http.request<any>("post", "/api/imchat/imsusermanager/login", {
     data,
-    responseType: 'text'
+    responseType: "text"
   });
 };
 
-/** 刷新`token` */
-export const refreshTokenApi = (data?: object) => {
-  return http.request<RefreshTokenResult>("post", "/refresh-token", { data });
+/** 平台数据统计 */
+export const getPlatformDataStatistics = (data?: object) => {
+  return http.request<any>("get", "/api/imchat/data/total", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 子账号列表 */
+export const getSubAccountList = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imcompany/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 子账号创建 */
+export const getSubAccountCreate = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imcompany/create", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 子账号更新 */
+export const getSubAccountUpdate = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imcompany/update", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 子账号删除 */
+export const getSubAccountDelete = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imcompany/del", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 用户列表 */
+export const getUserList = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imsuser/list", {
+    data,
+    responseType: "text"
+  });
 };

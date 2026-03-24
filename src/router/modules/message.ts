@@ -8,6 +8,7 @@ export default {
   meta: {
     icon: "ri:chat-3-line",
     title: "消息管理",
+    roles: ["admin"],
     rank: 3
   },
   children: [
@@ -16,7 +17,8 @@ export default {
       name: "MessageSingle",
       component: () => import("@/views/message/single/index.vue"),
       meta: {
-        title: "单聊记录"
+        title: "单聊记录",
+        roles: ["admin"]
       }
     },
     {
@@ -24,7 +26,8 @@ export default {
       name: "MessageGroupChat",
       component: () => import("@/views/message/group-chat/index.vue"),
       meta: {
-        title: "群聊记录"
+        title: "群聊记录",
+        roles: ["admin"]
       }
     },
     {
@@ -32,7 +35,8 @@ export default {
       name: "MessageGroupManage",
       component: () => import("@/views/message/group-manage/index.vue"),
       meta: {
-        title: "群管理"
+        title: "群管理",
+        roles: ["admin"]
       }
     }
   ]

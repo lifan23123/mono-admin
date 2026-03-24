@@ -9,6 +9,7 @@ import data1 from "@/assets/images/data-1.png";
 import data2 from "@/assets/images/data-2.png";
 import data3 from "@/assets/images/data-3.png";
 import data4 from "@/assets/images/data-4.png";
+import { getPlatformDataStatistics } from "@/api/user";
 
 defineOptions({
   name: "Statistics"
@@ -17,6 +18,23 @@ defineOptions({
 const lineChartRef = ref<HTMLDivElement>();
 const wordCloudRef = ref<HTMLDivElement>();
 let lineChart: echarts.ECharts | null = null;
+
+const statisticsData = ref({
+  accountCount: 0,
+  userCount: 0,
+  todayLoginCount: 0,
+  registerCount: 0,
+  userNewTodayCount: 0,
+  userNewTodayWeekRank: "0%",
+  userNewLastWeekCount: 0,
+  userNewTodayDayRank: "0%",
+  userNewYesterdayCount: 0,
+  dauTodayCount: 0,
+  dauTodayWeekRank: "0%",
+  dauLastWeekCount: 0,
+  dauTodayDayRank: "0%",
+  dauYesterdayCount: 0
+});
 
 const initLineChart = () => {
   if (!lineChartRef.value) return;
@@ -110,7 +128,19 @@ const handleResize = () => {
   lineChart?.resize();
 };
 
+const fetchStatistics = async () => {
+  try {
+    const { data } = await getPlatformDataStatistics();
+    Object.keys(data).forEach(key => {
+      statisticsData.value[key] = data[key] || 0;
+    });
+  } catch (error) {
+    console.error("Failed to fetch statistics:", error);
+  }
+};
+
 onMounted(async () => {
+  await fetchStatistics();
   await new Promise(resolve => setTimeout(resolve, 300)); // Ensure layout is stable
   initLineChart();
   window.addEventListener("resize", handleResize);
@@ -148,7 +178,9 @@ onUnmounted(() => {
             </div>
             <div class="ml-4 overflow-hidden">
               <div class="text-gray-400 text-xs mb-1 truncate">子账号数量</div>
-              <div class="text-2xl font-bold text-gray-800">12454</div>
+              <div class="text-2xl font-bold text-gray-800">
+                {{ statisticsData.accountCount }}
+              </div>
             </div>
           </div>
         </el-col>
@@ -161,7 +193,9 @@ onUnmounted(() => {
             </div>
             <div class="ml-4 overflow-hidden">
               <div class="text-gray-400 text-xs mb-1 truncate">总用户数量</div>
-              <div class="text-2xl font-bold text-gray-800">54545454</div>
+              <div class="text-2xl font-bold text-gray-800">
+                {{ statisticsData.userCount }}
+              </div>
             </div>
           </div>
         </el-col>
@@ -176,7 +210,9 @@ onUnmounted(() => {
               <div class="text-gray-400 text-xs mb-1 truncate">
                 今日总上线数量
               </div>
-              <div class="text-2xl font-bold text-gray-800">24545</div>
+              <div class="text-2xl font-bold text-gray-800">
+                {{ statisticsData.todayLoginCount }}
+              </div>
             </div>
           </div>
         </el-col>
@@ -191,7 +227,9 @@ onUnmounted(() => {
               <div class="text-gray-400 text-xs mb-1 truncate">
                 今日总注册用户数量
               </div>
-              <div class="text-2xl font-bold text-gray-800">12454</div>
+              <div class="text-2xl font-bold text-gray-800">
+                {{ statisticsData.registerCount }}
+              </div>
             </div>
           </div>
         </el-col>
@@ -208,7 +246,9 @@ onUnmounted(() => {
         <el-col :xs="24" :md="12" class="comparison-module relative pr-8">
           <div class="flex items-center h-full">
             <div class="main-stat text-center p-6 bg-gray-50 border-radius-12">
-              <div class="text-2xl font-bold text-gray-800">262673</div>
+              <div class="text-2xl font-bold text-gray-800">
+                {{ statisticsData.userNewTodayCount }}
+              </div>
               <div class="text-gray-400 text-sm">新增用户</div>
             </div>
             <div class="flex items-center ml-36">
@@ -219,9 +259,13 @@ onUnmounted(() => {
                     :is="useRenderIcon(TrendUp)"
                     class="text-red-500 ml-1"
                   />
-                  <span class="text-red-500 ml-1">35%</span>
+                  <span class="text-red-500 ml-1">{{
+                    statisticsData.userNewTodayWeekRank
+                  }}</span>
                 </div>
-                <div class="text-lg font-bold text-gray-800">12673</div>
+                <div class="text-lg font-bold text-gray-800">
+                  {{ statisticsData.userNewLastWeekCount }}
+                </div>
                 <div class="text-xs text-gray-300">上周新增用户</div>
               </div>
               <div class="divider-v"></div>
@@ -232,9 +276,13 @@ onUnmounted(() => {
                     :is="useRenderIcon(TrendDown)"
                     class="text-green-500 ml-1"
                   />
-                  <span class="text-green-500 ml-1">35%</span>
+                  <span class="text-green-500 ml-1">{{
+                    statisticsData.userNewTodayDayRank
+                  }}</span>
                 </div>
-                <div class="text-lg font-bold text-gray-800">1267</div>
+                <div class="text-lg font-bold text-gray-800">
+                  {{ statisticsData.userNewYesterdayCount }}
+                </div>
                 <div class="text-xs text-gray-300">昨日新增用户</div>
               </div>
             </div>
@@ -249,7 +297,9 @@ onUnmounted(() => {
         <el-col :xs="24" :md="12" class="comparison-module pl-8">
           <div class="flex items-center h-full">
             <div class="main-stat text-center p-6 bg-gray-50 border-radius-12">
-              <div class="text-2xl font-bold text-gray-800">262673</div>
+              <div class="text-2xl font-bold text-gray-800">
+                {{ statisticsData.dauTodayCount }}
+              </div>
               <div class="text-gray-400 text-sm">日活用户</div>
             </div>
             <div class="flex items-center ml-36">
@@ -260,9 +310,13 @@ onUnmounted(() => {
                     :is="useRenderIcon(TrendUp)"
                     class="text-red-500 ml-1"
                   />
-                  <span class="text-red-500 ml-1">35%</span>
+                  <span class="text-red-500 ml-1">{{
+                    statisticsData.dauTodayWeekRank
+                  }}</span>
                 </div>
-                <div class="text-lg font-bold text-gray-800">12673</div>
+                <div class="text-lg font-bold text-gray-800">
+                  {{ statisticsData.dauLastWeekCount }}
+                </div>
                 <div class="text-xs text-gray-300">上周日活用户</div>
               </div>
               <div class="divider-v"></div>
@@ -273,9 +327,13 @@ onUnmounted(() => {
                     :is="useRenderIcon(TrendDown)"
                     class="text-green-500 ml-1"
                   />
-                  <span class="text-green-500 ml-1">35%</span>
+                  <span class="text-green-500 ml-1">{{
+                    statisticsData.dauTodayDayRank
+                  }}</span>
                 </div>
-                <div class="text-lg font-bold text-gray-800">1267</div>
+                <div class="text-lg font-bold text-gray-800">
+                  {{ statisticsData.dauYesterdayCount }}
+                </div>
                 <div class="text-xs text-gray-300">昨日日活用户</div>
               </div>
             </div>
@@ -285,7 +343,7 @@ onUnmounted(() => {
     </el-card>
 
     <!-- Charts Group Card -->
-    <el-card
+    <!-- <el-card
       shadow="never"
       class="main-charts-card border-none border-radius-16"
     >
@@ -306,7 +364,6 @@ onUnmounted(() => {
               <span class="font-bold text-gray-700 text-sm">关键词统计</span>
             </div>
             <div class="word-cloud-container">
-              <!-- Word Cloud Placeholder -->
               <div class="keyword-tags">
                 <div class="tag-row row-1">
                   <span class="keyword size-s">实用</span>
@@ -355,7 +412,7 @@ onUnmounted(() => {
           </div>
         </el-col>
       </el-row>
-    </el-card>
+    </el-card> -->
   </div>
 </template>
 

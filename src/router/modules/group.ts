@@ -8,6 +8,7 @@ export default {
   meta: {
     icon: "ri:group-line",
     title: "群管理",
+    roles: ["admin"],
     rank: 4
   },
   children: [
@@ -17,6 +18,7 @@ export default {
       component: () => import("@/views/group/discovery/index.vue"),
       meta: {
         title: "发现管理",
+        roles: ["admin"],
         showParent: true
       }
     }

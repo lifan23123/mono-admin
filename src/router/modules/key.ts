@@ -8,6 +8,7 @@ export default {
   meta: {
     icon: "ri:key-2-line",
     title: "key配置",
+    roles: ["admin"],
     rank: 6
   },
   children: [
@@ -16,7 +17,8 @@ export default {
       name: "KeyConfigIndex",
       component: () => import("@/views/key/index.vue"),
       meta: {
-        title: "key配置"
+        title: "key配置",
+        roles: ["admin"]
       }
     }
   ]

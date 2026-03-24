@@ -8,6 +8,7 @@ export default {
   meta: {
     icon: "ri:bar-chart-2-line",
     title: "平台统计",
+    roles: ["admin"],
     rank: 0
   },
   children: [
@@ -16,7 +17,8 @@ export default {
       name: "Statistics",
       component: () => import("@/views/statistics/index.vue"),
       meta: {
-        title: "平台统计"
+        title: "平台统计",
+        roles: ["admin"]
       }
     }
   ]

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import { getUserList } from "@/api/user";
 import UserIcon from "~icons/ep/user";
 import MessageIcon from "~icons/ep/message";
 import PhoneIcon from "~icons/ep/iphone";
@@ -14,25 +15,49 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(120);
 
-const tableData = ref(
-  Array.from({ length: 10 }).map((_, i) => ({
-    id: i + 1,
-    nickname: "admin01",
-    avatarInitial: "王",
-    account: i % 2 === 0 ? "980826418376@163.com" : "15765653566",
-    accountType: i % 2 === 0 ? "email" : "phone",
-    region: "8.210.146.33",
-    registerTime: "2026-03-11 13:42:54",
-    lastLogin: "2026-03-11 13:42:54",
-    status: "正常"
-  }))
-);
+const tableData = ref([]);
+const loading = ref(false);
+
+const fetchUserList = async () => {
+  loading.value = true;
+  try {
+    const { data } = await getUserList({
+      pageNo: currentPage.value,
+      pageSize: pageSize.value,
+      name: searchQuery.value
+    });
+    if (data) {
+      if (Array.isArray(data)) {
+        tableData.value = data;
+        total.value = data.length;
+      } else if (data.list) {
+        tableData.value = data.list;
+        total.value = data.total || 0;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch user list:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchUserList();
+});
 
 const handleSizeChange = (val: number) => {
-  console.log(`${val} items per page`);
+  pageSize.value = val;
+  fetchUserList();
 };
 const handleCurrentChange = (val: number) => {
-  console.log(`current page: ${val}`);
+  currentPage.value = val;
+  fetchUserList();
+};
+
+const handleSearch = () => {
+  currentPage.value = 1;
+  fetchUserList();
 };
 
 // Dialog visibility state
@@ -84,14 +109,17 @@ const submitIp = () => {
           <el-input
             v-model="searchQuery"
             placeholder="昵称/账号/ID"
-            class="search-input"
+            class="search-input mr-4"
             clearable
+            @keyup.enter="handleSearch"
           />
+          <el-button type="primary" class="search-btn ml-4 px-6" @click="handleSearch">搜索</el-button>
         </div>
       </div>
 
       <!-- Table Section -->
       <el-table 
+        v-loading="loading"
         :data="tableData" 
         style="width: 100%" 
         class="custom-table flex-1"
@@ -103,9 +131,9 @@ const submitIp = () => {
           <template #default="scope">
             <div class="flex items-center">
               <div class="avatar-circle mr-3">
-                {{ scope.row.avatarInitial }}
+                {{ (scope.row.name || scope.row.nickname || "用").substring(0,1) }}
               </div>
-              <span class="text-gray-700 font-medium">{{ scope.row.nickname }}</span>
+              <span class="text-gray-700 font-medium">{{ scope.row.name || scope.row.nickname }}</span>
             </div>
           </template>
         </el-table-column>
@@ -114,24 +142,24 @@ const submitIp = () => {
           <template #default="scope">
             <div class="flex items-center text-gray-500">
               <component 
-                :is="useRenderIcon(scope.row.accountType === 'email' ? MessageIcon : UserIcon)" 
+                :is="useRenderIcon(UserIcon)" 
                 class="mr-2 text-base"
               />
-              <span>{{ scope.row.account }}</span>
+              <span>{{ scope.row.imsUserManagerResp?.loginName || scope.row.account }}</span>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="region" label="地区/IP" min-width="150" align="center" />
+        <el-table-column prop="loginIp" label="地区/IP" min-width="150" align="center" />
         
-        <el-table-column prop="registerTime" label="注册时间" min-width="180" align="center" />
+        <el-table-column prop="createTime" label="注册时间" min-width="180" align="center" />
         
-        <el-table-column prop="lastLogin" label="最近登录" min-width="180" align="center" />
+        <el-table-column prop="loginTime" label="最近登录" min-width="180" align="center" />
 
         <el-table-column label="账号状态" width="120" align="center">
           <template #default="scope">
-            <span class="status-tag status-normal">
-              {{ scope.row.status }}
+            <span :class="['status-tag', scope.row.state === 1 ? 'status-normal' : 'status-abnormal']">
+              {{ scope.row.state === 1 ? '正常' : '禁用' }}
             </span>
           </template>
         </el-table-column>
@@ -251,6 +279,13 @@ const submitIp = () => {
           height: 40px;
         }
       }
+      
+      .search-btn {
+        height: 40px;
+        border-radius: 8px;
+        background-color: #0076fe;
+        border: none;
+      }
     }
   }
 
@@ -293,6 +328,11 @@ const submitIp = () => {
       &.status-normal {
         background-color: #ecfdf5;
         color: #10b981;
+      }
+      
+      &.status-abnormal {
+        background-color: #fef2f2;
+        color: #ef4444;
       }
     }
 
