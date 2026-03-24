@@ -14,7 +14,8 @@ defineOptions({
   name: "SubAdmin"
 });
 
-const searchQuery = ref("");
+const loginName = ref("");
+const name = ref('')
 const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(120);
@@ -29,7 +30,8 @@ const fetchSubAccounts = async () => {
       pageNo: currentPage.value,
       pageSize: pageSize.value,
       type: 2,
-      loginName: searchQuery.value
+      loginName: loginName.value,
+      name: name.value
     });
 
     // 假设返回的数据格式中 data 包含 list 和 total
@@ -201,7 +203,14 @@ const submitDelete = async () => {
         <div class="search-box flex items-center">
           <span class="mr-4 text-sm text-gray-600">账号</span>
           <el-input
-            v-model="searchQuery"
+            v-model="loginName"
+            placeholder="请输入子账号登录名"
+            class="search-input mr-4"
+            clearable
+          />
+          <span class="mr-4 text-sm text-gray-600">备注</span>
+          <el-input
+            v-model="name"
             placeholder="请输入子账号登录名"
             class="search-input mr-4"
             clearable
