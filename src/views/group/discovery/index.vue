@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import {
+  getGroupDiscoveryList,
+  getGroupDiscoveryAdd,
+  getGroupDiscoveryUpdate,
+  getGroupDiscoveryDelete
+} from "@/api/user";
 
 defineOptions({
   name: "DiscoveryManage"
@@ -7,53 +14,132 @@ defineOptions({
 
 const currentPage = ref(1);
 const pageSize = ref(20);
-const total = ref(10);
+const total = ref(0);
+const tableData = ref([]);
+const loading = ref(false);
 
-const tableData = ref([
-  {
-    id: 1,
-    icon: "王",
-    name: "admin01",
-    url: "https://baidu.com"
+const fetchList = async () => {
+  loading.value = true;
+  try {
+    const { data } = await getGroupDiscoveryList({
+      pageNo: currentPage.value,
+      pageSize: pageSize.value
+    });
+    if (data) {
+      if (Array.isArray(data)) {
+        tableData.value = data;
+        total.value = data.length;
+      } else if (data.list) {
+        tableData.value = data.list;
+        total.value = data.total || 0;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch discovery list:", error);
+  } finally {
+    loading.value = false;
   }
-]);
+};
 
-// Dialog visibility state
-const addDialogVisible = ref(false);
-
-// Form Data
-const addForm = reactive({
-  name: "",
-  url: "",
-  iconFile: null
+onMounted(() => {
+  fetchList();
 });
 
 const handleSizeChange = (val: number) => {
-  console.log(`${val} items per page`);
+  pageSize.value = val;
+  fetchList();
 };
 
 const handleCurrentChange = (val: number) => {
-  console.log(`current page: ${val}`);
+  currentPage.value = val;
+  fetchList();
+};
+
+// Dialog state
+const dialogVisible = ref(false);
+const dialogTitle = ref("新增");
+const isEdit = ref(false);
+const submitLoading = ref(false);
+
+// Form Data
+const formData = reactive({
+  id: null as number | null,
+  name: "",
+  url: "",
+  icon: ""
+});
+
+const resetForm = () => {
+  formData.id = null;
+  formData.name = "";
+  formData.url = "";
+  formData.icon = "";
 };
 
 const openAddDialog = () => {
-  addForm.name = "";
-  addForm.url = "";
-  addForm.iconFile = null;
-  addDialogVisible.value = true;
-};
-
-const submitAdd = () => {
-  console.log("Submit Discovery Item:", addForm);
-  addDialogVisible.value = false;
-};
-
-const handleDelete = (row: any) => {
-  console.log("Delete discovery item:", row.id);
+  resetForm();
+  isEdit.value = false;
+  dialogTitle.value = "新增";
+  dialogVisible.value = true;
 };
 
 const handleEdit = (row: any) => {
-  console.log("Edit discovery item:", row.id);
+  isEdit.value = true;
+  dialogTitle.value = "编辑";
+  formData.id = row.id;
+  formData.name = row.name || "";
+  formData.url = row.url || "";
+  formData.icon = row.icon || "";
+  dialogVisible.value = true;
+};
+
+const submitForm = async () => {
+  if (!formData.name) {
+    ElMessage.warning("请输入名称");
+    return;
+  }
+  if (!formData.url) {
+    ElMessage.warning("请输入URL");
+    return;
+  }
+  submitLoading.value = true;
+  try {
+    const params: any = {
+      name: formData.name,
+      url: formData.url,
+      icon: formData.icon
+    };
+    if (isEdit.value) {
+      params.id = formData.id;
+      await getGroupDiscoveryUpdate(params);
+      ElMessage.success("更新成功");
+    } else {
+      await getGroupDiscoveryAdd(params);
+      ElMessage.success("新增成功");
+    }
+    dialogVisible.value = false;
+    fetchList();
+  } catch (error) {
+    console.error("Submit failed:", error);
+  } finally {
+    submitLoading.value = false;
+  }
+};
+
+const handleDelete = (row: any) => {
+  ElMessageBox.confirm("确定要删除该发现项吗？", "提示", {
+    confirmButtonText: "确定",
+    cancelButtonText: "取消",
+    type: "warning"
+  }).then(async () => {
+    try {
+      await getGroupDiscoveryDelete({ id: row.id });
+      ElMessage.success("删除成功");
+      fetchList();
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
+  }).catch(() => {});
 };
 </script>
 
@@ -69,6 +155,7 @@ const handleEdit = (row: any) => {
 
       <!-- Table Section -->
       <el-table 
+        v-loading="loading"
         :data="tableData" 
         style="width: 100%" 
         class="custom-table flex-1"
@@ -78,8 +165,20 @@ const handleEdit = (row: any) => {
         <el-table-column label="图标" width="160" align="center">
           <template #default="scope">
             <div class="flex justify-center">
-              <div class="discovery-avatar">
-                {{ scope.row.icon }}
+              <el-image 
+                v-if="scope.row.icon" 
+                :src="scope.row.icon" 
+                class="discovery-avatar-img"
+                fit="cover"
+              >
+                <template #error>
+                  <div class="discovery-avatar-text">
+                    {{ (scope.row.name || "用").substring(0,1) }}
+                  </div>
+                </template>
+              </el-image>
+              <div v-else class="discovery-avatar-text">
+                {{ (scope.row.name || "用").substring(0,1) }}
               </div>
             </div>
           </template>
@@ -116,10 +215,10 @@ const handleEdit = (row: any) => {
       </div>
     </el-card>
 
-    <!-- New Item Dialog -->
+    <!-- Add/Edit Dialog -->
     <el-dialog
-      v-model="addDialogVisible"
-      title="新增"
+      v-model="dialogVisible"
+      :title="dialogTitle"
       width="440px"
       align-center
       class="custom-dialog"
@@ -127,28 +226,27 @@ const handleEdit = (row: any) => {
       <el-form label-position="top">
         <el-form-item label="名称">
           <el-input 
-            v-model="addForm.name" 
+            v-model="formData.name" 
             placeholder="请输入名称" 
           />
         </el-form-item>
-        <el-form-item label="名称">
+        <el-form-item label="URL">
           <el-input 
-            v-model="addForm.url" 
-            placeholder="请输入名称" 
+            v-model="formData.url" 
+            placeholder="请输入URL" 
           />
         </el-form-item>
-        <el-form-item label="图片">
-          <div class="upload-placeholder">
-            <div class="icon-upload-box">
-              <span class="plus-icon">+</span>
-            </div>
-          </div>
+        <el-form-item label="图标链接">
+          <el-input 
+            v-model="formData.icon" 
+            placeholder="请输入图标URL" 
+          />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="addDialogVisible = false" class="cancel-btn">取消</el-button>
-          <el-button type="primary" @click="submitAdd" class="submit-btn ml-4">保存</el-button>
+          <el-button @click="dialogVisible = false" class="cancel-btn">取消</el-button>
+          <el-button type="primary" @click="submitForm" :loading="submitLoading" class="submit-btn ml-4">保存</el-button>
         </div>
       </template>
     </el-dialog>
@@ -204,12 +302,18 @@ const handleEdit = (row: any) => {
       }
     }
 
-    .discovery-avatar {
-      width: 32px;
-      height: 32px;
+    .discovery-avatar-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+    }
+
+    .discovery-avatar-text {
+      width: 40px;
+      height: 40px;
       background-color: #0076fe;
       color: #fff;
-      border-radius: 50%;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;

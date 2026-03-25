@@ -15,7 +15,7 @@ defineOptions({
 });
 
 const loginName = ref("");
-const name = ref('')
+const name = ref("");
 const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(120);
@@ -188,6 +188,22 @@ const submitDelete = async () => {
     console.error("Delete failed:", error);
   }
 };
+
+const handleStateChange = async (row: any) => {
+  try {
+    const params: any = {
+      id: row.id,
+      state: row.state == 1 ? 2 : 1
+    };
+    const res = await getSubAccountUpdate(params);
+    if (res.success) {
+      message("更新成功", { type: "success" });
+      fetchSubAccounts();
+    }
+  } catch (error) {
+    console.error("Update failed:", error);
+  }
+};
 </script>
 
 <template>
@@ -280,7 +296,7 @@ const submitDelete = async () => {
                 scope.row.state === 1 ? 'status-normal' : 'status-abnormal'
               ]"
             >
-              {{ scope.row.state === 1 ? "正常" : "异常" }}
+              {{ scope.row.state === 1 ? "正常" : "禁用" }}
             </span>
           </template>
         </el-table-column>
@@ -294,7 +310,13 @@ const submitDelete = async () => {
               >编辑</el-button
             >
             <el-button link type="primary" class="op-link">查看</el-button>
-            <el-button link type="warning" class="op-link">禁用</el-button>
+            <el-button
+              link
+              type="warning"
+              class="op-link"
+              @click="handleStateChange(scope.row)"
+              >{{ scope.row.state == 1 ? "禁用" : "启用" }}</el-button
+            >
             <el-button
               link
               type="danger"

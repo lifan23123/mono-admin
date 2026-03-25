@@ -55,3 +55,59 @@ export const getUserList = (data?: object) => {
     responseType: "text"
   });
 };
+
+/** 群管理-发现管理列表 */
+export const getGroupDiscoveryList = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imfaxian/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 群管理-发现管理新增 */
+export const getGroupDiscoveryAdd = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imfaxian/create", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 群管理-发现管理更新 */
+export const getGroupDiscoveryUpdate = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imfaxian/update", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 群管理-发现管理删除 */
+export const getGroupDiscoveryDelete = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imfaxian/del", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 聊天列表 */
+export const getChatList = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imchatmanager/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 聊天记录详情 */
+export const getChatRecord = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/immessage/all/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 后台用户管理 */
+export const getBackstageUserList = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imsusermanager/list", {
+    data,
+    responseType: "text"
+  });
+};

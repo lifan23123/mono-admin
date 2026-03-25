@@ -24,7 +24,7 @@ const fetchUserList = async () => {
     const { data } = await getUserList({
       pageNo: currentPage.value,
       pageSize: pageSize.value,
-      name: searchQuery.value
+      searchKey: searchQuery.value
     });
     if (data) {
       if (Array.isArray(data)) {
@@ -130,7 +130,19 @@ const submitIp = () => {
         <el-table-column label="用户" min-width="150">
           <template #default="scope">
             <div class="flex items-center">
-              <div class="avatar-circle mr-3">
+              <el-image 
+                v-if="scope.row.icon" 
+                :src="scope.row.icon" 
+                class="avatar-wrapper mr-3"
+                fit="cover"
+              >
+                <template #error>
+                  <div class="avatar-wrapper avatar-text mr-3">
+                    {{ (scope.row.name || scope.row.nickname || "用").substring(0,1) }}
+                  </div>
+                </template>
+              </el-image>
+              <div v-else class="avatar-wrapper avatar-text mr-3">
                 {{ (scope.row.name || scope.row.nickname || "用").substring(0,1) }}
               </div>
               <span class="text-gray-700 font-medium">{{ scope.row.name || scope.row.nickname }}</span>
@@ -145,7 +157,7 @@ const submitIp = () => {
                 :is="useRenderIcon(UserIcon)" 
                 class="mr-2 text-base"
               />
-              <span>{{ scope.row.imsUserManagerResp?.loginName || scope.row.account }}</span>
+              <span>{{ scope.row.loginName || scope.row.account }}</span>
             </div>
           </template>
         </el-table-column>
@@ -307,17 +319,23 @@ const submitIp = () => {
       }
     }
 
-    .avatar-circle {
-      width: 32px;
-      height: 32px;
-      background-color: #0076fe;
-      color: #fff;
+    .avatar-wrapper {
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      font-weight: bold;
+      overflow: hidden;
+      flex-shrink: 0;
+      
+      &.avatar-text {
+        background-color: #0076fe;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: bold;
+        line-height: 1;
+      }
     }
 
     .status-tag {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { getBackstageUserList } from "@/api/user";
 
 defineOptions({
   name: "BackendUser"
@@ -8,24 +9,48 @@ defineOptions({
 const searchQuery = ref("");
 const currentPage = ref(1);
 const pageSize = ref(20);
-const total = ref(10);
+const total = ref(0);
+const loading = ref(false);
+const tableData = ref([]);
 
-const tableData = ref([
-  {
-    id: 1,
-    username: "admin",
-    nickname: "超级管理员",
-    name: "超级管理员",
-    role: "超级管理员",
-    status: "正常"
+const fetchList = async () => {
+  loading.value = true;
+  try {
+    const res = await getBackstageUserList({
+      pageNo: currentPage.value,
+      pageSize: pageSize.value,
+      searchKey: searchQuery.value
+    });
+
+    const { data, total: totalCount } = res as any;
+
+    if (data) {
+      tableData.value = data || [];
+      total.value = totalCount || 0;
+    }
+  } catch (error) {
+    console.error("Failed to fetch backend user list:", error);
+  } finally {
+    loading.value = false;
   }
-]);
+};
+
+onMounted(() => {
+  fetchList();
+});
+
+const handleSearch = () => {
+  currentPage.value = 1;
+  fetchList();
+};
 
 const handleSizeChange = (val: number) => {
-  console.log(`${val} items per page`);
+  pageSize.value = val;
+  fetchList();
 };
 const handleCurrentChange = (val: number) => {
-  console.log(`current page: ${val}`);
+  currentPage.value = val;
+  fetchList();
 };
 </script>
 
@@ -33,45 +58,64 @@ const handleCurrentChange = (val: number) => {
   <div class="backend-user-container p-4">
     <el-card shadow="never" class="main-card border-none border-radius-16">
       <!-- Search Filter Area -->
-      <div class="filter-wrapper mb-6">
+      <div class="filter-wrapper mb-6 flex items-center justify-between">
         <div class="flex items-center">
-          <span class="mr-4 text-sm text-gray-600">群主</span>
+          <span class="mr-4 text-sm text-gray-600">用户名</span>
           <el-input
             v-model="searchQuery"
-            placeholder="昵称/ID"
-            class="search-input"
+            placeholder="请输入登录名"
+            class="search-input mr-4"
             clearable
+            @keyup.enter="handleSearch"
           />
+          <el-button type="primary" class="px-8" @click="handleSearch"
+            >查询</el-button
+          >
         </div>
       </div>
 
       <!-- Table Section -->
-      <el-table 
-        :data="tableData" 
-        style="width: 100%" 
+      <el-table
+        v-loading="loading"
+        :data="tableData"
+        style="width: 100%"
         class="custom-table flex-1"
         height="100%"
       >
         <el-table-column prop="id" label="用户ID" width="100" align="center" />
-        <el-table-column prop="username" label="用户名" min-width="120" align="center" />
-        <el-table-column prop="nickname" label="昵称" min-width="120" align="center" />
-        <el-table-column prop="name" label="姓名" min-width="120" align="center" />
-        <el-table-column label="所属角色" min-width="150" align="center">
-          <template #default="scope">
-            <span class="role-text underline">{{ scope.row.role }}</span>
-          </template>
-        </el-table-column>
+        <el-table-column
+          prop="loginName"
+          label="用户名"
+          min-width="120"
+          align="center"
+        />
+        <el-table-column
+          prop="name"
+          label="昵称"
+          min-width="120"
+          align="center"
+        />
+        <el-table-column
+          prop="loginTime"
+          label="最近登录时间"
+          min-width="150"
+          align="center"
+        />
         <el-table-column label="状态" width="120" align="center">
           <template #default="scope">
-            <span class="status-tag status-normal">
-              {{ scope.row.status }}
+            <span
+              :class="[
+                'status-tag',
+                scope.row.state === 1 ? 'status-normal' : 'status-abnormal'
+              ]"
+            >
+              {{ scope.row.state === 1 ? "正常" : "禁用" }}
             </span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" align="center">
           <template #default>
             <el-button link type="primary" class="op-link">修改</el-button>
-            <el-button link type="danger" class="op-link">删除</el-button>
             <el-button link type="primary" class="op-link">重置密码</el-button>
           </template>
         </el-table-column>
@@ -112,7 +156,7 @@ const handleCurrentChange = (val: number) => {
     height: calc(100vh - 140px);
     display: flex;
     flex-direction: column;
-    
+
     :deep(.el-card__body) {
       display: flex;
       flex-direction: column;
@@ -165,10 +209,15 @@ const handleCurrentChange = (val: number) => {
       padding: 4px 12px;
       border-radius: 4px;
       font-size: 12px;
-      
+
       &.status-normal {
         background-color: #ecfdf5;
         color: #10b981;
+      }
+
+      &.status-abnormal {
+        background-color: #fef2f2;
+        color: #ef4444;
       }
     }
 
@@ -176,9 +225,13 @@ const handleCurrentChange = (val: number) => {
       font-weight: 500;
       margin: 0 8px;
       padding: 0;
-      
-      &.el-button--primary { color: #0076fe; }
-      &.el-button--danger { color: #ef4444; }
+
+      &.el-button--primary {
+        color: #0076fe;
+      }
+      &.el-button--danger {
+        color: #ef4444;
+      }
     }
   }
 
@@ -193,15 +246,16 @@ const handleCurrentChange = (val: number) => {
       border-radius: 4px;
       margin: 0 3px;
       font-weight: normal;
-      
+
       &.is-active {
         background-color: #0076fe;
         color: #fff;
         border-color: #0076fe;
       }
     }
-    
-    .btn-prev, .btn-next {
+
+    .btn-prev,
+    .btn-next {
       background: none;
       border: 1px solid #e4e7ed;
       border-radius: 4px;

@@ -1,44 +1,102 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { getChatList } from "@/api/user";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import ViewIcon from "~icons/ep/chat-dot-round";
 import RefreshIcon from "~icons/ep/refresh";
 import CloseIcon from "~icons/ep/close";
 import MembersIcon from "~icons/ep/user";
+import LoadingIcon from "~icons/ep/loading";
 
 defineOptions({
   name: "MessageGroupChat"
 });
 
 const userQuery = ref("");
-const contentQuery = ref("");
 const dialogVisible = ref(false);
+const loading = ref(false);
+const pageNo = ref(1);
+const pageSize = ref(12);
+const hasMore = ref(true);
+const groupChats = ref([]);
 
-const groupChats = ref(
-  Array.from({ length: 6 }).map((_, i) => ({
-    id: i,
-    group: {
-      name: "admin01",
-      desc: "山鸟与鱼不同路",
-      members: 22,
-      avatarLogo: "王"
-    },
-    messages: [
-      {
-        sender: "看看",
-        avatarInitial: "王",
-        text: "我通过了你的朋友验证请求，现在我们可以开始聊天了",
-        time: "2026-03-11 13:44:08"
-      },
-      {
-        sender: "看看",
-        avatarInitial: "王",
-        text: "东北图牛潘图图",
-        time: "2026-03-11 13:44:08"
-      }
-    ]
-  }))
-);
+const fetchList = async (isAppend = false) => {
+  if (loading.value) return;
+  if (!isAppend) {
+    loading.value = true;
+    pageNo.value = 1;
+    hasMore.value = true;
+  }
+  try {
+    const { data } = await getChatList({
+      type: 2, // 群聊
+      userName: userQuery.value,
+      pageNo: pageNo.value,
+      pageSize: pageSize.value
+    });
+    
+    const list = Array.isArray(data) ? data : (data?.list || []);
+    if (list.length < pageSize.value) {
+      hasMore.value = false;
+    }
+    
+    const mapped = list.map((item: any) => {
+      const groupName = item.name || "未知群聊";
+      return {
+        id: item.id,
+        group: {
+          name: groupName,
+          desc: item.remark || "群聊记录",
+          members: item.peopleNum || 0,
+          avatarLogo: groupName.substring(0, 1)
+        },
+        messages: (item.imMessageList || [])
+          .slice()
+          .reverse()
+          .map((msg: any, index: number) => {
+            let actualContent = msg.content;
+            try {
+              const parsed = JSON.parse(msg.content);
+              actualContent = parsed.content || parsed.text || msg.content;
+            } catch (e) {
+              /* Keep original */
+            }
+            return {
+              sender: msg.fromNickname || "未知用户",
+              avatarInitial: (msg.fromNickname || "用").substring(0, 1),
+              text: actualContent,
+              time: msg.createTime,
+              side: index % 2 === 0 ? "left" : "right"
+            };
+          })
+      };
+    });
+
+    if (isAppend) {
+      groupChats.value.push(...mapped);
+    } else {
+      groupChats.value = mapped;
+    }
+  } catch (error) {
+    console.error("Fetch group chat failed:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loadMore = () => {
+  if (loading.value || !hasMore.value) return;
+  pageNo.value++;
+  fetchList(true);
+};
+
+onMounted(() => {
+  fetchList();
+});
+
+const handleQuery = () => {
+  fetchList(false);
+};
 
 const detailMessages = ref([
   {
@@ -68,10 +126,6 @@ const detailMessages = ref([
   }
 ]);
 
-const handleQuery = () => {
-  console.log("Querying with:", userQuery.value, contentQuery.value);
-};
-
 const openChatDialog = (room: any) => {
   console.log("Opening group chat for:", room.group.name);
   dialogVisible.value = true;
@@ -79,36 +133,30 @@ const openChatDialog = (room: any) => {
 </script>
 
 <template>
-  <div class="message-group-chat-container p-4">
+  <div 
+    class="message-group-chat-container p-4"
+    v-infinite-scroll="loadMore"
+    :infinite-scroll-disabled="!hasMore || loading"
+    :infinite-scroll-distance="200"
+  >
     <!-- Filter Card -->
     <el-card shadow="never" class="filter-card mb-4 border-none border-radius-16">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-8">
-          <div class="flex items-center">
-            <span class="mr-4 text-sm text-gray-600 whitespace-nowrap">用户</span>
-            <el-input
-              v-model="userQuery"
-              placeholder="昵称/ID"
-              class="search-input"
-              clearable
-            />
-          </div>
-          <div class="flex items-center">
-            <span class="mr-4 text-sm text-gray-600 whitespace-nowrap">聊天内容</span>
-            <el-input
-              v-model="contentQuery"
-              placeholder="昵称/ID"
-              class="search-input"
-              clearable
-            />
-          </div>
+      <div class="flex items-center gap-8">
+        <div class="flex items-center">
+          <span class="mr-4 text-sm text-gray-600 whitespace-nowrap">用户</span>
+          <el-input
+            v-model="userQuery"
+            placeholder="昵称/ID"
+            class="search-input"
+            clearable
+          />
         </div>
         <el-button type="primary" class="query-btn px-8" @click="handleQuery">查询</el-button>
       </div>
     </el-card>
 
     <!-- Chat Grid -->
-    <el-row :gutter="16">
+    <el-row v-loading="loading" :gutter="16">
       <el-col 
         v-for="room in groupChats" 
         :key="room.id" 
@@ -147,20 +195,44 @@ const openChatDialog = (room: any) => {
 
           <!-- Message Logs -->
           <div class="chat-logs-container custom-scrollbar">
-            <div v-for="(msg, index) in room.messages" :key="index" class="msg-item flex mb-4">
-              <div class="avatar-circle mr-3 shrink-0 bg-blue-500 text-white flex items-center justify-center font-bold text-sm">
+            <div 
+              v-for="(msg, index) in room.messages" 
+              :key="index" 
+              :class="['msg-item mb-4 flex', msg.side === 'right' ? 'justify-end' : 'justify-start']"
+            >
+              <div class="avatar-circle mr-3 shrink-0 bg-blue-500 text-white flex items-center justify-center font-bold text-sm" v-if="msg.side === 'left'">
                 {{ msg.avatarInitial }}
               </div>
-              <div class="msg-content overflow-hidden">
-                <div class="sender text-xs text-gray-400 mb-1">{{ msg.sender }}</div>
-                <div class="text text-sm text-gray-700 leading-relaxed mb-1">{{ msg.text }}</div>
-                <div class="time text-xs text-gray-300">{{ msg.time }}</div>
+              <div :class="['msg-content overflow-hidden max-w-[85%]', msg.side === 'right' ? 'text-right' : 'text-left']">
+                <div class="sender text-[10px] text-gray-400 mb-1" v-if="msg.side === 'left'">{{ msg.sender }}</div>
+                <div 
+                  :class="[
+                    'msg-bubble text-sm py-2 px-4 rounded-lg shadow-sm leading-relaxed min-w-[80px]',
+                    msg.side === 'left' ? 'bg-gray-100 text-gray-700 rounded-tl-none text-left' : 'bg-blue-500 text-white rounded-tr-none text-right'
+                  ]"
+                >
+                  {{ msg.text }}
+                </div>
+                <div class="time text-[10px] text-gray-300 mt-1">{{ msg.time }}</div>
+              </div>
+              <div class="avatar-circle ml-3 shrink-0 bg-blue-500 text-white flex items-center justify-center font-bold text-sm" v-if="msg.side === 'right'">
+                {{ msg.avatarInitial }}
               </div>
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- Loading Footer -->
+    <div class="scroll-footer py-4 text-center text-gray-400 text-sm">
+      <div v-if="loading && groupChats.length > 0" class="flex justify-center items-center py-2">
+        <el-icon class="is-loading mr-2"><component :is="useRenderIcon(LoadingIcon)" /></el-icon>
+        加载中...
+      </div>
+      <div v-else-if="!hasMore && groupChats.length > 0">没有更多了</div>
+      <div v-else-if="groupChats.length === 0 && !loading">暂无记录</div>
+    </div>
 
     <!-- Chat Detail Dialog (Same as Single Chat) -->
     <el-dialog
@@ -224,7 +296,10 @@ const openChatDialog = (room: any) => {
 .message-group-chat-container {
   background: transparent;
   width: 100%;
+  height: calc(100vh - 84px);
+  overflow-y: auto;
   min-height: 100%;
+  padding: 20px;
 
   .border-radius-16 {
     border-radius: 16px !important;
@@ -262,7 +337,7 @@ const openChatDialog = (room: any) => {
   }
 
   .chat-card {
-    height: 420px;
+    height: 500px;
     display: flex;
     flex-direction: column;
 
