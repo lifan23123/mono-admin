@@ -8,7 +8,7 @@ export default {
   meta: {
     icon: "ri:bar-chart-2-line",
     title: "平台统计",
-    roles: ["admin"],
+    roles: ["admin", "common"],
     rank: 0
   },
   children: [

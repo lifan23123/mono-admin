@@ -11,10 +11,10 @@ export default defineFakeRoute([
           success: true,
           data: {
             avatar: "https://avatars.githubusercontent.com/u/44761321",
-            username: "admin",
-            nickname: "小铭",
-            // 一个用户可能有多个角色
-            roles: ["admin"],
+            username: "admin成为普通用户了",
+            nickname: "测试员",
+            // 强制改为 common 进行测试
+            roles: ["common"],
             // 按钮级别权限
             permissions: ["*:*:*"],
             accessToken: "eyJhbGciOiJIUzUxMiJ9.admin",

@@ -162,7 +162,7 @@ const openChatDialog = (room: any) => {
       </div>
     </el-card>
 
-    <el-row v-loading="loading" :gutter="24">
+    <el-row :gutter="24">
       <el-col v-for="room in chatRooms" :key="room.id" :xs="24" :sm="12" :lg="8" class="mb-6">
         <el-card shadow="never" class="chat-card border-none border-radius-16">
           <div class="chat-header flex items-center justify-between p-4 bg-gray-50 border-radius-12 mb-4">
@@ -215,10 +215,10 @@ const openChatDialog = (room: any) => {
     </el-row>
 
     <div class="scroll-footer py-4 text-center text-gray-400 text-sm">
-      <div v-if="loading && chatRooms.length > 0" class="flex justify-center items-center py-2">
-        <el-icon class="is-loading mr-2"><component :is="useRenderIcon(LoadingIcon)" /></el-icon>加载中...
+      <div v-if="loading" class="flex justify-center items-center py-2">
+        <el-icon class="is-loading mr-2"><component :is="useRenderIcon(LoadingIcon)" /></el-icon>数据加载中...
       </div>
-      <div v-else-if="!hasMore && chatRooms.length > 0">没有更多了</div>
+      <div v-else-if="!hasMore && chatRooms.length > 0">已加载全部历史记录</div>
     </div>
 
     <!-- Reusable Component -->

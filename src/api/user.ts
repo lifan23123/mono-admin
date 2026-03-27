@@ -56,6 +56,14 @@ export const getUserList = (data?: object) => {
   });
 };
 
+/** 用户更新 */
+export const getUserUpdate = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imsuser/update", {
+    data,
+    responseType: "text"
+  });
+};
+
 /** 群管理-发现管理列表 */
 export const getGroupDiscoveryList = (data?: object) => {
   return http.request<any>("post", "/api/imchat/imfaxian/list", {
@@ -131,6 +139,30 @@ export const pushAllHost = (data?: object) => {
 /** 获取七牛域名 */
 export const getQiNiuDomain = (data?: object) => {
   return http.request<any>("get", "/api/imchat/immessage/image/token", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 群管理更新 */
+export const getChatUpdate = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imchatmanager/update", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 配置保存 */
+export const getConfigUpdate = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imconfig/create", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 配置详情 */
+export const getConfigDetail = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imconfig/detail", {
     data,
     responseType: "text"
   });

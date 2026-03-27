@@ -8,7 +8,7 @@ export default {
   meta: {
     icon: "ri:settings-3-line",
     title: "后台管理",
-    roles: ["admin"],
+    roles: ["admin", "common"],
     rank: 5
   },
   children: [
@@ -18,7 +18,7 @@ export default {
       component: () => import("@/views/backend/user/index.vue"),
       meta: {
         title: "后台用户管理",
-        roles: ["admin"]
+        roles: ["admin", "common"]
       }
     },
     {
@@ -27,7 +27,7 @@ export default {
       component: () => import("@/views/backend/log/index.vue"),
       meta: {
         title: "后台登录日志",
-        roles: ["admin"]
+        roles: ["admin", "common"]
       }
     },
     {
@@ -36,7 +36,7 @@ export default {
       component: () => import("@/views/backend/blacklist/index.vue"),
       meta: {
         title: "IP黑名单",
-        roles: ["admin"]
+        roles: ["common"]
       }
     }
   ]

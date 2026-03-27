@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
+import { getConfigDetail, getConfigUpdate } from "@/api/user";
+import { message } from "@/utils/message";
+import { ElMessageBox } from "element-plus";
 
 defineOptions({
   name: "BackendBlacklist"
@@ -9,13 +12,9 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(10);
 
-const tableData = ref([
-  {
-    id: 1,
-    ip: "1.1.1.1",
-    remark: "超级管理员"
-  }
-]);
+const tableData = ref([]);
+const loading = ref(false);
+const configId = ref<number | null>(null);
 
 // Dialog visibility state
 const addDialogVisible = ref(false);
@@ -24,6 +23,35 @@ const addDialogVisible = ref(false);
 const addForm = reactive({
   ip: "",
   remark: ""
+});
+
+const fetchBlacklist = async () => {
+  loading.value = true;
+  try {
+    const res = await getConfigDetail({ ident: "blackIp" });
+    const { data, code } = res as any;
+    if (code === "0000" && data) {
+      configId.value = data.id;
+      // 假设黑名单存储在 value 字段，且为 JSON 数组字符串
+      // 如果接口直接返回列表，则直接赋值
+      try {
+        const parsedValue = JSON.parse(data.value || "[]");
+        tableData.value = Array.isArray(parsedValue) ? parsedValue : [];
+      } catch (e) {
+        // 如果不是 JSON，尝试逗号分隔或处理为单条
+        tableData.value = data.value ? [{ id: Date.now(), ip: data.value, remark: data.remark || "" }] : [];
+      }
+      total.value = tableData.value.length;
+    }
+  } catch (error) {
+    console.error("Fetch blacklist failed:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchBlacklist();
 });
 
 const handleSizeChange = (val: number) => {
@@ -40,13 +68,52 @@ const openAddDialog = () => {
   addDialogVisible.value = true;
 };
 
-const submitAdd = () => {
-  console.log("Submit Blacklist IP:", addForm);
-  addDialogVisible.value = false;
+const submitAdd = async () => {
+  if (!addForm.ip) {
+    message("请输入IP地址", { type: "warning" });
+    return;
+  }
+
+  const newList = [...tableData.value, { id: Date.now(), ...addForm }];
+  try {
+    const res = await getConfigUpdate({
+      id: configId.value,
+      ident: "blackIp",
+      name: "IP黑名单",
+      value: JSON.stringify(newList)
+    });
+    if ((res as any).code === "0000") {
+      message("添加成功", { type: "success" });
+      addDialogVisible.value = false;
+      fetchBlacklist();
+    }
+  } catch (e) {
+    message("添加失败", { type: "error" });
+  }
 };
 
 const handleDelete = (row: any) => {
-  console.log("Delete IP:", row.ip);
+  ElMessageBox.confirm(`确认要将 IP ${row.ip} 从黑名单中移除吗？`, "提示", {
+    confirmButtonText: "确定",
+    cancelButtonText: "取消",
+    type: "warning"
+  }).then(async () => {
+    const newList = tableData.value.filter(item => item.ip !== row.ip);
+    try {
+      const res = await getConfigUpdate({
+        id: configId.value,
+        ident: "blackIp",
+        name: "IP黑名单",
+        value: JSON.stringify(newList)
+      });
+      if ((res as any).code === "0000") {
+        message("删除成功", { type: "success" });
+        fetchBlacklist();
+      }
+    } catch (e) {
+      message("删除失败", { type: "error" });
+    }
+  });
 };
 </script>
 
@@ -62,6 +129,7 @@ const handleDelete = (row: any) => {
 
       <!-- Table Section -->
       <el-table 
+        v-loading="loading"
         :data="tableData" 
         style="width: 100%" 
         class="custom-table flex-1"
@@ -106,25 +174,19 @@ const handleDelete = (row: any) => {
       class="custom-dialog"
     >
       <el-form label-position="top">
-        <el-form-item label="IP地址">
+        <el-form-item label="绑定IP">
           <el-input 
             v-model="addForm.ip" 
-            placeholder="需要加黑名单得IP地址示例：192.168.32.31" 
-          />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input 
-            v-model="addForm.remark" 
-            placeholder="请输入备注（可不填写）" 
             type="textarea"
-            :rows="4"
+            :rows="6"
+            placeholder="请输入绑定IP，多个IP逗号分隔 例如:127.0.0.1,127.0.0.1,127.0.0.1" 
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="addDialogVisible = false" class="cancel-btn">取消</el-button>
-          <el-button type="primary" @click="submitAdd" class="submit-btn ml-4">保存</el-button>
+          <el-button type="primary" @click="addDialogVisible = false" class="submit-btn ml-4">保存</el-button>
         </div>
       </template>
     </el-dialog>

@@ -17,6 +17,7 @@ const {
   onPanel,
   pureApp,
   username,
+  nickname,
   userAvatar,
   avatarsStyle,
   toggleSideBar
@@ -55,8 +56,10 @@ const {
               class="username text-sm font-bold text-black leading-tight"
               >{{ username }}</span
             >
-            <span class="role text-[10px] text-blue-500 leading-tight"
-              >超级管理员</span
+            <span
+              v-if="nickname"
+              class="role text-[10px] text-blue-500 leading-tight"
+              >{{ nickname }}</span
             >
           </div>
           <IconifyIconOffline

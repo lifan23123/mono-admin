@@ -35,7 +35,8 @@ export function setToken(data: any) {
     const { loginName, name, id, companyId, loginIp, loginTime, state, createTime, updateTime } = data;
     const username = loginName || data.username || "";
     const nickname = name || data.nickname || "";
-    const roles = (data.roles && data.roles.length > 0) ? data.roles : ["admin"]; 
+    const type = Number(data.type);
+    const roles = type === 1 ? ["admin"] : ["common"];
     const permissions = (data.permissions && data.permissions.length > 0) ? data.permissions : ["*:*:*"]; 
     const avatar = data.avatar || "";
 

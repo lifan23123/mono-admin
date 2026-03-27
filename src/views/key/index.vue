@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
+import { getConfigDetail, getConfigUpdate } from "@/api/user";
+import { message } from "@/utils/message";
 
 defineOptions({
   name: "KeyConfig"
@@ -11,8 +13,54 @@ const configForm = reactive({
   masterKey: ""
 });
 
-const handleSave = () => {
-  console.log("Saving configuration:", configForm);
+const configId = ref<number | null>(null);
+
+const fetchConfig = async () => {
+  try {
+    const res = await getConfigDetail({ ident: "IMINFO" });
+    const { data, code } = res as any;
+    if (code === "0000" && data) {
+      configId.value = data.id;
+      // 解析 JSON 字符串
+      let dm: any = {};
+      try {
+        dm = JSON.parse(data.data || "{}");
+      } catch (e) {
+        console.error("解析配置数据失败:", e);
+      }
+      configForm.appKey = dm.appKey || "";
+      configForm.appSecret = dm.appSerect || ""; // 映射 appSerect
+      configForm.masterKey = dm.pwd || ""; // 映射 pwd
+    }
+  } catch (error) {
+    console.error("Fetch key config failed:", error);
+  }
+};
+
+onMounted(() => {
+  fetchConfig();
+});
+
+const handleSave = async () => {
+  try {
+    // 根据返回格式，保存时也应将对象转为 JSON 字符串放入 data 字段
+    const res = await getConfigUpdate({
+      ident: "IMINFO",
+      data: JSON.stringify({
+        appKey: configForm.appKey,
+        appSerect: configForm.appSecret,
+        pwd: configForm.masterKey
+      })
+    });
+    if ((res as any).code === "0000") {
+      message("配置保存成功", { type: "success" });
+      fetchConfig();
+    } else {
+      message((res as any).message || "保存失败", { type: "error" });
+    }
+  } catch (e) {
+    message("操作异常", { type: "error" });
+  }
 };
 
 const handleReset = () => {
@@ -29,14 +77,18 @@ const handleReset = () => {
         <h2 class="text-base font-bold text-gray-800">通讯秘钥</h2>
       </div>
 
-      <el-form label-position="top" :model="configForm" class="flex-1 flex flex-col justify-between">
+      <el-form
+        label-position="top"
+        :model="configForm"
+        class="flex-1 flex flex-col justify-between"
+      >
         <el-row :gutter="32">
           <!-- IM App Key -->
           <el-col :xs="24" :sm="8">
             <el-form-item label="IM App Key">
-              <el-input 
-                v-model="configForm.appKey" 
-                placeholder="请输入 App Key" 
+              <el-input
+                v-model="configForm.appKey"
+                placeholder="请输入 App Key"
                 class="custom-input"
               />
             </el-form-item>
@@ -45,9 +97,9 @@ const handleReset = () => {
           <!-- IM App Secret -->
           <el-col :xs="24" :sm="8">
             <el-form-item label="IM App Secret">
-              <el-input 
-                v-model="configForm.appSecret" 
-                placeholder="请输入 App Secret/秘钥" 
+              <el-input
+                v-model="configForm.appSecret"
+                placeholder="请输入 App Secret/秘钥"
                 class="custom-input"
               />
             </el-form-item>
@@ -56,9 +108,9 @@ const handleReset = () => {
           <!-- Communication Master Key -->
           <el-col :xs="24" :sm="8">
             <el-form-item label="通讯主秘钥">
-              <el-input 
-                v-model="configForm.masterKey" 
-                placeholder="选填，主秘钥或 Token" 
+              <el-input
+                v-model="configForm.masterKey"
+                placeholder="选填，主秘钥或 Token"
                 class="custom-input"
               />
             </el-form-item>
@@ -67,8 +119,12 @@ const handleReset = () => {
 
         <!-- Form Actions -->
         <div class="form-actions mt-12 flex justify-end gap-4">
-          <el-button class="reset-btn" @click="handleReset">重置为空白</el-button>
-          <el-button type="primary" class="save-btn" @click="handleSave">保存配置</el-button>
+          <el-button class="reset-btn" @click="handleReset"
+            >重置为空白</el-button
+          >
+          <el-button type="primary" class="save-btn" @click="handleSave"
+            >保存配置</el-button
+          >
         </div>
       </el-form>
     </el-card>
@@ -119,7 +175,8 @@ const handleReset = () => {
       border: 1px solid transparent;
       transition: all 0.3s;
 
-      &:hover, &.is-focus {
+      &:hover,
+      &.is-focus {
         border-color: #dcdfe6;
       }
     }
@@ -141,7 +198,7 @@ const handleReset = () => {
       color: #606266;
       border: 1px solid #dcdfe6;
       background-color: #fff;
-      
+
       &:hover {
         border-color: #0076fe;
         color: #0076fe;
@@ -151,7 +208,7 @@ const handleReset = () => {
     .save-btn {
       background-color: #0076fe;
       border: none;
-      
+
       &:hover {
         background-color: #3391ff;
       }

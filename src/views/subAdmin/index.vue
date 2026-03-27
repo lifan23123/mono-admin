@@ -208,11 +208,6 @@ const handleStateChange = async (row: any) => {
 
 <template>
   <div class="sub-admin-container p-4">
-    <!-- Blue Header Bar -->
-    <div class="company-header mb-4">
-      <span class="text-lg font-bold">山西太原XXX公司</span>
-    </div>
-
     <el-card shadow="never" class="table-card border-none border-radius-16">
       <!-- Search and Add Area -->
       <div class="filter-wrapper mb-6 flex justify-between items-center">
@@ -309,7 +304,7 @@ const handleStateChange = async (row: any) => {
               @click="openEditDialog(scope.row)"
               >编辑</el-button
             >
-            <el-button link type="primary" class="op-link">查看</el-button>
+            <!-- <el-button link type="primary" class="op-link">查看</el-button> -->
             <el-button
               link
               type="warning"
