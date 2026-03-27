@@ -1,25 +1,25 @@
 const Layout = () => import("@/layout/index.vue");
 
 export default {
-  path: "/group",
-  name: "Group",
+  path: "/discovery",
+  name: "Discovery",
   component: Layout,
-  redirect: "/group/discovery",
+  redirect: "/discovery/index",
   meta: {
-    icon: "ri:group-line",
-    title: "群管理",
+    icon: "ri:compass-3-line",
+    title: "发现管理",
     roles: ["admin"],
     rank: 4
   },
   children: [
     {
-      path: "/group/discovery",
+      path: "/discovery/index",
       name: "DiscoveryManage",
       component: () => import("@/views/group/discovery/index.vue"),
       meta: {
         title: "发现管理",
         roles: ["admin"],
-        showParent: true
+        showParent: false
       }
     }
   ]

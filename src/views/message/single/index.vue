@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from "vue";
-import { getChatList, getChatRecord, getQiNiuDomain } from "@/api/user";
+import { ref, onMounted } from "vue";
+import { getChatList, getQiNiuDomain } from "@/api/user";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import ChatRecordDialog from "../components/ChatRecordDialog.vue";
 import ViewIcon from "~icons/ep/chat-dot-round";
-import RefreshIcon from "~icons/ep/refresh";
-import CloseIcon from "~icons/ep/close";
 import LoadingIcon from "~icons/ep/loading";
 
 defineOptions({
@@ -14,33 +13,36 @@ defineOptions({
 const qiniuDomain = ref("");
 const userQuery = ref("");
 const renderIcon = useRenderIcon;
-const dialogVisible = ref(false);
 const loading = ref(false);
 const pageNo = ref(1);
 const pageSize = ref(20);
 const hasMore = ref(true);
 const chatRooms = ref([]);
 
+// 弹窗状态
+const dialogVisible = ref(false);
+const currentChatId = ref("");
+const currentChatName = ref("");
+
 const fetchQiNiuDomain = async () => {
   try {
     const res = await getQiNiuDomain();
     const { data } = res as any;
-    if (data) {
-      qiniuDomain.value = data;
-    }
-  } catch (error) {
-    console.error("Failed to fetch QiNiu domain:", error);
-  }
+    if (data) qiniuDomain.value = data;
+  } catch (e) {}
 };
 
-// 详情页状态
-const detailLoading = ref(false);
-const detailPageNo = ref(1);
-const detailPageSize = ref(20);
-const detailHasMore = ref(true);
-const detailMessages = ref([]);
-const currentChatId = ref("");
-const currentChatName = ref("");
+const getUrl = (path: string) => {
+  if (!path || path.startsWith("http")) return path || "";
+  let domainBase = "";
+  if (typeof qiniuDomain.value === "string") domainBase = qiniuDomain.value;
+  else if (qiniuDomain.value && typeof qiniuDomain.value === "object") {
+    domainBase = (qiniuDomain.value as any).url || "";
+  }
+  const domain = domainBase.replace(/\/$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return domain + cleanPath;
+};
 
 const fetchList = async (isAppend = false) => {
   if (loading.value) return;
@@ -48,87 +50,58 @@ const fetchList = async (isAppend = false) => {
     loading.value = true;
     pageNo.value = 1;
     hasMore.value = true;
+    chatRooms.value = [];
   }
   try {
     const { data } = await getChatList({
-      type: 1, // 单聊
+      type: 1,
       userName: userQuery.value,
       pageNo: pageNo.value,
       pageSize: pageSize.value
     });
 
     const list = Array.isArray(data) ? data : data?.list || [];
-    if (list.length < pageSize.value) {
-      hasMore.value = false;
-    }
+    if (list.length < pageSize.value) hasMore.value = false;
 
-    // 处理聊天列表中的每个会话
-    const formattedList = list.map(item => {
-      if (item.imMessageList) {
-        // 定义预览专用的 URL 拼接（复用逻辑）
-        const getPreviewUrl = (path: string) => {
-          if (!path) return "";
-          if (path.startsWith("http")) return path;
-          let domainBase = "";
-          if (typeof qiniuDomain.value === "string") {
-            domainBase = qiniuDomain.value;
-          } else if (qiniuDomain.value && typeof qiniuDomain.value === "object") {
-            domainBase = (qiniuDomain.value as any).url || "";
-          }
-          const domain = domainBase.replace(/\/$/, "");
-          const cleanPath = path.startsWith("/") ? path : `/${path}`;
-          return domain + cleanPath;
+    const formattedList = list.map((item: any) => {
+      const roomSideMap = new Map<any, "left" | "right">();
+      let roomLastSide: "left" | "right" = "right";
+
+      const imList = (item.imMessageList || []).reverse().map((msg: any) => {
+        let parsed: any = { msgType: 1, content: msg.content };
+        try { parsed = JSON.parse(msg.content); } catch (e) {}
+        const mType = Number(parsed.msgType);
+        let displayContent = parsed.content;
+
+        if (mType === 3) {
+          const imgs = Array.isArray(parsed.content) ? parsed.content : [parsed.content];
+          displayContent = imgs.map((img: any) => ({ ...img, fullUrl: getUrl(img.url) }));
+        } else if (mType === 4 || mType === 5) {
+          displayContent = { ...parsed, fullUrl: getUrl(parsed.url || parsed.videoUrl) };
+        }
+
+        const userId = msg.sendId;
+        if (!roomSideMap.has(userId)) {
+          const side = roomLastSide === "left" ? "right" : "left";
+          roomSideMap.set(userId, side);
+          roomLastSide = side;
+        }
+
+        return {
+          ...msg,
+          type: mType,
+          formattedContent: displayContent,
+          side: roomSideMap.get(userId),
+          time: msg.createTime
         };
+      });
 
-        // 为每个房间建立独立的消息分侧策略
-        const roomSideMap = new Map<any, "left" | "right">();
-        let roomLastSide: "left" | "right" = "right";
-
-        item.imMessageList = item.imMessageList.reverse().map((msg: any) => {
-          let parsed: any = { msgType: 1, content: msg.content };
-          try {
-            parsed = JSON.parse(msg.content);
-          } catch (e) {}
-
-          const mType = Number(parsed.msgType);
-          let displayContent = parsed.content;
-
-          if (mType === 3) {
-            const imgs = Array.isArray(parsed.content) ? parsed.content : [parsed.content];
-            displayContent = imgs.map((img: any) => ({ ...img, fullUrl: getPreviewUrl(img.url) }));
-          } else if (mType === 4) {
-            displayContent = { ...parsed, videoUrl: getPreviewUrl(parsed.videoUrl), coverUrl: getPreviewUrl(parsed.url) };
-          } else if (mType === 5) {
-            displayContent = { ...parsed, audioUrl: getPreviewUrl(parsed.url) };
-          }
-
-          // 分侧逻辑
-          const userId = msg.sendId;
-          if (!roomSideMap.has(userId)) {
-            const side = roomLastSide === "left" ? "right" : "left";
-            roomSideMap.set(userId, side);
-            roomLastSide = side;
-          }
-
-          return {
-            ...msg,
-            type: mType,
-            formattedContent: displayContent,
-            side: roomSideMap.get(userId),
-            time: msg.createTime // 确保时间字段存在
-          };
-        });
-      }
-      return item;
-    });
-
-    const mapped = formattedList.map((item: any) => {
       const userA = item.managerUsers?.[0] || {};
       const userB = item.managerUsers?.[1] || userA;
 
       return {
         id: item.id,
-        managerUsers: item.managerUsers, // 显式保留参与者信息用于颜色判断
+        managerUsers: item.managerUsers,
         userA: {
           nickname: userA.name || userA.loginName || "用户A",
           uid: userA.id,
@@ -139,16 +112,12 @@ const fetchList = async (isAppend = false) => {
           uid: userB.id,
           avatarInitial: (userB.name || "B").substring(0, 1)
         },
-        // 直接使用前面已经 formatted 过的列表，不要重新 map
-        messages: item.imMessageList || []
+        messages: imList
       };
     });
 
-    if (isAppend) {
-      chatRooms.value.push(...mapped);
-    } else {
-      chatRooms.value = mapped;
-    }
+    if (isAppend) chatRooms.value.push(...formattedList);
+    else chatRooms.value = formattedList;
   } catch (error) {
     console.error("Fetch chat list failed:", error);
   } finally {
@@ -167,158 +136,12 @@ onMounted(() => {
   fetchQiNiuDomain();
 });
 
-const handleQuery = () => {
-  fetchList(false);
-};
-
-// 维护用户名与左右边位的映射
-const nameSideMap = new Map<string, "left" | "right">();
-let lastAssignedSide: "left" | "right" = "right"; // 默认让第一个人为左，则前一个假设为右
-
-const playAudio = (url: string) => {
-  if (!url) return;
-  const audio = new Audio(url);
-  audio.play().catch(e => {
-    console.error("Audio play failed:", e);
-  });
-};
-
-// 获取详情列表
-const fetchDetail = async (isAppend = false) => {
-  if (detailLoading.value || !currentChatId.value) return;
-  if (!isAppend) {
-    detailLoading.value = true;
-    detailPageNo.value = 1;
-    detailHasMore.value = true;
-    detailMessages.value = [];
-    nameSideMap.clear(); // 切换会话时清空映射表
-    lastAssignedSide = "right"; // Reset for new chat
-  }
-
-  try {
-    const res = await getChatRecord({
-      chatId: currentChatId.value,
-      pageNo: detailPageNo.value,
-      pageSize: detailPageSize.value
-    });
-
-    const { data, code } = res as any;
-
-    // 如果接口返回非成功状态，停止加载
-    if (code !== "0000") {
-      detailHasMore.value = false;
-      return;
-    }
-
-    const list = Array.isArray(data) ? data : data?.list || [];
-    if (list.length < detailPageSize.value) {
-      detailHasMore.value = false;
-    }
-
-    // 反转列表，使时间最早的在前
-    const mapped = [...list].reverse().map((msg: any) => {
-      let parsed: any = { msgType: 1, content: msg.content };
-      try {
-        parsed = JSON.parse(msg.content);
-      } catch (e) {
-        /* 非 JSON 处理 */
-      }
-
-      const mType = Number(parsed.msgType);
-      let displayContent: any = parsed.content;
-
-      // 域名拼接工具
-      const getUrl = (path: string) => {
-        if (!path) return "";
-        if (path.startsWith("http")) return path;
-        
-        // 兼容 qiniuDomain 是对象还是字符串的情况
-        let domainBase = "";
-        if (typeof qiniuDomain.value === "string") {
-          domainBase = qiniuDomain.value;
-        } else if (qiniuDomain.value && typeof qiniuDomain.value === "object") {
-          domainBase = (qiniuDomain.value as any).url || "";
-        }
-
-        const domain = domainBase.replace(/\/$/, "");
-        const cleanPath = path.startsWith("/") ? path : `/${path}`;
-        return domain + cleanPath;
-      };
-
-      if (mType === 3) {
-        // 图片：可能是数组
-        const imgs = Array.isArray(parsed.content)
-          ? parsed.content
-          : [parsed.content];
-        displayContent = imgs.map((item: any) => ({
-          ...item,
-          fullUrl: getUrl(item.url)
-        }));
-      } else if (mType === 4) {
-        // 视频
-        displayContent = {
-          ...parsed,
-          videoUrl: getUrl(parsed.videoUrl),
-          coverUrl: getUrl(parsed.url)
-        };
-      } else if (mType === 5) {
-        // 语音
-        displayContent = {
-          ...parsed,
-          audioUrl: getUrl(parsed.url)
-        };
-      }
-
-      // 根据唯一ID获取当前用户的显示侧
-      const userId = msg.sendId;
-      if (!nameSideMap.has(userId)) {
-        const side = lastAssignedSide === "left" ? "right" : "left";
-        nameSideMap.set(userId, side);
-        lastAssignedSide = side;
-      }
-
-      return {
-        id: msg.id,
-        nickname: msg.sendUserName || "用户",
-        avatar: msg.sendUserIcon || "",
-        side: nameSideMap.get(userId),
-        type: mType,
-        content: displayContent,
-        time: msg.createTime
-      };
-    });
-
-    if (isAppend) {
-      // 加载更多（历史记录）应当插入到顶部
-      detailMessages.value = [...mapped, ...detailMessages.value];
-    } else {
-      detailMessages.value = mapped;
-      // 首次加载滚动到底部以查看最新
-      nextTick(() => {
-        const container = document.querySelector(".chat-detail-content");
-        if (container) {
-          container.scrollTop = container.scrollHeight;
-        }
-      });
-    }
-  } catch (error) {
-    console.error("Fetch chat records failed:", error);
-  } finally {
-    detailLoading.value = false;
-  }
-};
-
-const loadMoreDetail = () => {
-  if (detailLoading.value || !detailHasMore.value) return;
-  detailPageNo.value++;
-  fetchDetail(true);
-};
+const handleQuery = () => fetchList(false);
 
 const openChatDialog = (room: any) => {
   currentChatId.value = room.id;
   currentChatName.value = `${room.userA.nickname} 与 ${room.userB.nickname}`;
   dialogVisible.value = true;
-  fetchDetail(false);
 };
 </script>
 
@@ -329,478 +152,105 @@ const openChatDialog = (room: any) => {
     :infinite-scroll-disabled="!hasMore || loading"
     :infinite-scroll-distance="200"
   >
-    <el-card
-      shadow="never"
-      class="filter-card mb-4 border-none border-radius-16"
-    >
-      <div class="flex items-center gap-8">
+    <el-card shadow="never" class="filter-card mb-4 border-none border-radius-16">
+      <div class="flex items-center gap-8 px-2">
         <div class="flex items-center">
-          <span class="mr-4 text-sm text-gray-600 whitespace-nowrap">用户</span>
-          <el-input
-            v-model="userQuery"
-            placeholder="昵称/ID"
-            class="search-input"
-            clearable
-          />
+          <span class="mr-4 text-sm text-gray-600">用户</span>
+          <el-input v-model="userQuery" placeholder="昵称/ID" class="search-input" clearable />
         </div>
-        <el-button type="primary" class="query-btn px-8" @click="handleQuery"
-          >查询</el-button
-        >
+        <el-button type="primary" class="query-btn px-8" @click="handleQuery">查询</el-button>
       </div>
     </el-card>
 
-    <el-row v-loading="loading" :gutter="16">
-      <el-col
-        v-for="room in chatRooms"
-        :key="room.id"
-        :xs="24"
-        :sm="12"
-        :lg="8"
-        class="mb-4"
-      >
+    <el-row v-loading="loading" :gutter="24">
+      <el-col v-for="room in chatRooms" :key="room.id" :xs="24" :sm="12" :lg="8" class="mb-6">
         <el-card shadow="never" class="chat-card border-none border-radius-16">
-          <div
-            class="chat-header flex items-center justify-between p-4 bg-gray-50 border-radius-12 mb-4"
-          >
-            <!-- User A -->
-            <div class="flex items-center">
-              <div class="avatar-circle mr-2 bg-blue-500 text-white">
-                {{ room.userA.avatarInitial }}
-              </div>
-              <div class="user-info">
-                <div class="nickname text-sm font-bold text-gray-800">
-                  {{ room.userA.nickname }}
-                </div>
-                <div class="uid text-xs text-gray-400">
-                  UID:{{ room.userA.uid }}
-                </div>
+          <div class="chat-header flex items-center justify-between p-4 bg-gray-50 border-radius-12 mb-4">
+            <div class="flex items-center flex-1">
+              <div class="avatar-circle mr-2 bg-blue-500 text-white">{{ room.userA.avatarInitial }}</div>
+              <div class="user-info truncate">
+                <div class="nickname text-sm font-bold text-gray-800">{{ room.userA.nickname }}</div>
+                <div class="uid text-[10px] text-gray-400">UID:{{ room.userA.uid }}</div>
               </div>
             </div>
 
-            <!-- View Action -->
-            <div class="view-session flex flex-col items-center">
-              <el-button
-                link
-                type="primary"
-                class="view-btn flex items-center bg-blue-50 px-3 py-1 border-radius-20"
-                @click="openChatDialog(room)"
-              >
-                <component :is="useRenderIcon(ViewIcon)" class="mr-1 text-sm" />
-                <span class="text-xs">查看会话</span>
-              </el-button>
-            </div>
+            <el-button link type="primary" class="view-btn flex items-center bg-blue-50 px-3 py-1 rounded-full shrink-0 mx-2" @click="openChatDialog(room)">
+              <component :is="useRenderIcon(ViewIcon)" class="mr-1 text-sm" />
+              <span class="text-xs">详情</span>
+            </el-button>
 
-            <!-- User B -->
-            <div class="flex items-center text-right">
-              <div class="user-info mr-2">
-                <div class="nickname text-sm font-bold text-gray-800">
-                  {{ room.userB.nickname }}
-                </div>
-                <div class="uid text-xs text-gray-400">
-                  UID:{{ room.userB.uid }}
-                </div>
+            <div class="flex items-center flex-1 justify-end text-right">
+              <div class="user-info mr-2 truncate">
+                <div class="nickname text-sm font-bold text-gray-800">{{ room.userB.nickname }}</div>
+                <div class="uid text-[10px] text-gray-400">UID:{{ room.userB.uid }}</div>
               </div>
-              <div class="avatar-circle bg-blue-500 text-white">
-                {{ room.userB.avatarInitial }}
-              </div>
+              <div class="avatar-circle bg-blue-500 text-white">{{ room.userB.avatarInitial }}</div>
             </div>
           </div>
 
-          <!-- Card Logs Scroll Area -->
-          <div class="chat-logs-container custom-scrollbar card-logs-area">
-            <div
-              v-for="(msg, index) in room.messages"
-              :key="index"
-              class="msg-wrapper mb-5"
-            >
-              <!-- Bubble Container -->
-              <div
-                :class="[
-                  'flex w-full',
-                  msg.side === 'right' ? 'flex-row-reverse' : 'flex-row'
-                ]"
-              >
+          <div class="chat-logs-container custom-scrollbar px-1 h-[350px] overflow-y-auto">
+            <div v-for="(msg, msgIdx) in room.messages" :key="msgIdx" class="msg-wrapper mb-5">
+              <div class="flex w-full" :class="msg.side === 'right' ? 'flex-row-reverse' : 'flex-row'">
                 <div
                   :class="[
-                    'bubble p-3 text-sm rounded-xl shadow-sm leading-relaxed max-w-[95%] w-fit whitespace-pre-wrap overflow-wrap-anywhere word-keep-all text-left block',
-                    msg.side === 'left' 
-                      ? 'bg-white text-gray-800' 
-                      : 'bg-gray-50 text-gray-700 border border-gray-100'
+                    'bubble p-3 text-sm rounded-xl shadow-sm leading-relaxed max-w-[95%] w-fit whitespace-pre-wrap overflow-wrap-anywhere word-keep-all block',
+                    msg.side === 'left' ? 'bg-white text-gray-800' : 'bg-gray-50 text-gray-700 border border-gray-100'
                   ]"
                 >
-                  <!-- Text Content -->
-                  <div v-if="msg.type === 1 || msg.type === 2">
-                    {{ msg.formattedContent }}
-                  </div>
-
-                  <!-- Image Content -->
+                  <div v-if="msg.type <= 2">{{ msg.formattedContent }}</div>
                   <div v-else-if="msg.type === 3" class="flex gap-1 overflow-hidden">
-                    <el-image
-                      v-if="msg.formattedContent?.[0]"
-                      :src="msg.formattedContent[0].fullUrl"
-                      :preview-src-list="[msg.formattedContent[0].fullUrl]"
-                      fit="cover"
-                      class="w-20 h-20 rounded border border-gray-100"
-                      preview-teleported
-                    />
+                    <el-image v-if="msg.formattedContent?.[0]" :src="msg.formattedContent[0].fullUrl" :preview-src-list="[msg.formattedContent[0].fullUrl]" fit="cover" class="w-20 h-20 rounded shadow-sm" preview-teleported />
                   </div>
-
-                  <!-- Video / Audio Placeholder -->
-                  <div v-else-if="msg.type === 4" class="flex items-center gap-1">
-                    <component :is="useRenderIcon('ri:video-fill')" class="text-lg opacity-60" />
-                    <span>视频消息</span>
-                  </div>
-                  <div v-else-if="msg.type === 5" class="flex items-center gap-1">
-                    <component :is="useRenderIcon('ri:volume-up-fill')" class="text-lg opacity-60" />
-                    <span>{{ msg.formattedContent.duration }}s 语音</span>
+                  <div v-else class="flex items-center gap-2 opacity-60">
+                    <component :is="useRenderIcon(msg.type === 4 ? 'ri:video-fill' : 'ri:volume-up-fill')" />
+                    <span>{{ msg.type === 4 ? '视频消息' : '语音消息' }}</span>
                   </div>
                 </div>
               </div>
-
-              <!-- Time Below Bubble -->
-              <div 
-                :class="[
-                  'text-[10px] text-gray-300 mt-1.5 px-1',
-                  msg.side === 'right' ? 'text-right' : 'text-left'
-                ]"
-              >
-                {{ msg.time }}
-              </div>
+              <div class="text-[10px] text-gray-300 mt-1.5 px-1" :class="msg.side === 'right' ? 'text-right' : 'text-left'">{{ msg.time }}</div>
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- Loading Footer -->
     <div class="scroll-footer py-4 text-center text-gray-400 text-sm">
-      <div
-        v-if="loading && chatRooms.length > 0"
-        class="flex justify-center items-center py-2"
-      >
-        <el-icon class="is-loading mr-2"
-          ><component :is="useRenderIcon(LoadingIcon)"
-        /></el-icon>
-        加载中...
+      <div v-if="loading && chatRooms.length > 0" class="flex justify-center items-center py-2">
+        <el-icon class="is-loading mr-2"><component :is="useRenderIcon(LoadingIcon)" /></el-icon>加载中...
       </div>
       <div v-else-if="!hasMore && chatRooms.length > 0">没有更多了</div>
-      <div v-else-if="chatRooms.length === 0 && !loading">暂无记录</div>
     </div>
 
-    <!-- Chat Details Dialog -->
-    <el-dialog
-      v-model="dialogVisible"
-      width="800px"
-      align-center
-      class="custom-dialog chat-detail-dialog"
-      :show-close="false"
-    >
-      <template #header="{ close }">
-        <div class="custom-header flex items-center justify-between px-6 py-4">
-          <span class="text-base font-bold text-gray-800">{{
-            currentChatName
-          }}</span>
-          <div class="header-actions flex items-center gap-4">
-            <el-button
-              link
-              class="action-btn refresh-btn"
-              @click="fetchDetail(false)"
-            >
-              <component :is="useRenderIcon(RefreshIcon)" class="text-xl" />
-            </el-button>
-            <el-button link class="action-btn close-btn" @click="close">
-              <component :is="useRenderIcon(CloseIcon)" class="text-2xl" />
-            </el-button>
-          </div>
-        </div>
-      </template>
-      <div
-        class="chat-detail-content custom-scrollbar"
-        v-infinite-scroll="loadMoreDetail"
-        :infinite-scroll-disabled="!detailHasMore || detailLoading"
-        :infinite-scroll-distance="20"
-      >
-        <div
-          v-for="(msg, idx) in detailMessages"
-          :key="idx"
-          :class="[
-            'detail-msg-row mb-6 flex',
-            msg.side === 'right' ? 'justify-end' : 'justify-start'
-          ]"
-        >
-          <!-- Left Avatar Case -->
-          <el-avatar
-            v-if="msg.side === 'left'"
-            :src="msg.avatar"
-            :size="40"
-            class="mr-3 shrink-0"
-          />
-
-          <div
-            :class="[
-              'msg-body-wrapper',
-              msg.side === 'right'
-                ? 'text-right items-end'
-                : 'text-left items-start',
-              'flex flex-col'
-            ]"
-            :style="
-              msg.side === 'right'
-                ? 'margin-right: 0; max-width: 90%;'
-                : 'margin-left: 0; max-width: 90%;'
-            "
-          >
-            <div class="nickname text-xs text-gray-400 mb-1">
-              {{ msg.nickname }}
-            </div>
-
-            <!-- Text Bubble (Type 1 or 2) -->
-            <div
-              v-if="msg.type === 1 || msg.type === 2"
-              :class="[
-                'bubble-content p-3 text-sm shadow-sm',
-                msg.side === 'left'
-                  ? 'bg-white rounded-r-xl rounded-bl-xl'
-                  : 'bg-blue-500 text-white rounded-l-xl rounded-br-xl'
-              ]"
-            >
-              {{ msg.content }}
-            </div>
-
-            <!-- Image Message (Type 3) -->
-            <div v-else-if="msg.type === 3" class="media-container flex flex-wrap gap-2">
-              <el-image
-                v-for="(img, i) in msg.content"
-                :key="i"
-                :src="img.fullUrl"
-                :preview-src-list="[img.fullUrl]"
-                fit="cover"
-                class="rounded-lg w-32 h-32 cursor-pointer shadow-sm hover:opacity-90 transition-opacity"
-                preview-teleported
-              />
-            </div>
-
-            <!-- Video Message (Type 4) -->
-            <div v-else-if="msg.type === 4" class="media-container max-w-[320px]">
-              <div class="relative rounded-lg overflow-hidden shadow-sm bg-black group">
-                <video
-                  :src="msg.content.videoUrl"
-                  :poster="msg.content.coverUrl"
-                  controls
-                  class="w-full h-auto block"
-                />
-              </div>
-            </div>
-
-            <!-- Audio Message (Type 5) -->
-            <div v-else-if="msg.type === 5" class="media-container">
-              <div
-                :class="[
-                  'audio-bubble p-3 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-colors',
-                  msg.side === 'left' ? 'bg-white text-gray-800' : 'bg-blue-500 text-white'
-                ]"
-                @click="playAudio(msg.content.audioUrl)"
-              >
-                <component :is="useRenderIcon('ri:volume-up-fill')" class="text-xl" />
-                <span class="text-xs font-medium">{{ msg.content.duration }}s</span>
-              </div>
-            </div>
-
-            <div class="time text-xs text-gray-300 mt-2">{{ msg.time }}</div>
-          </div>
-
-          <!-- Right Avatar Case -->
-          <el-avatar
-            v-if="msg.side === 'right'"
-            :src="msg.avatar"
-            :size="40"
-            class="ml-3 shrink-0"
-          />
-        </div>
-
-        <!-- Detail Loading Footer -->
-        <div class="scroll-footer py-2 text-center text-gray-400 text-[12px]">
-          <div
-            v-if="detailLoading"
-            class="flex justify-center items-center py-2"
-          >
-            <el-icon class="is-loading mr-2"
-              ><component :is="useRenderIcon(LoadingIcon)"
-            /></el-icon>
-            加载历史记录...
-          </div>
-          <div v-else-if="!detailHasMore && detailMessages.length > 0">
-            没有更多消息了
-          </div>
-        </div>
-      </div>
-    </el-dialog>
+    <!-- Reusable Component -->
+    <ChatRecordDialog
+      v-model:visible="dialogVisible"
+      :chat-id="currentChatId"
+      :chat-name="currentChatName"
+      :qiniu-domain="qiniuDomain"
+      :type="1"
+    />
   </div>
 </template>
 
 <style lang="scss" scoped>
 .message-single-container {
-  background: transparent;
-  width: 100%;
-  height: calc(100vh - 84px); // 减去顶部导航栏高度
+  height: calc(100vh - 84px);
   overflow-y: auto;
-  min-height: 100%;
-  padding: 20px;
-
-  .border-radius-16 {
-    border-radius: 16px !important;
-  }
-
-  .border-radius-12 {
-    border-radius: 12px !important;
-  }
-
-  .border-radius-20 {
-    border-radius: 20px !important;
-  }
-
+  padding: 24px;
+  .border-radius-16 { border-radius: 16px !important; }
   .filter-card {
-    :deep(.el-card__body) {
-      padding: 20px 24px;
-    }
-
-    .search-input {
-      width: 220px;
-      :deep(.el-input__wrapper) {
-        background-color: #f7f8fa;
-        box-shadow: none;
-        border-radius: 8px;
-        height: 40px;
-      }
-    }
-
-    .query-btn {
-      height: 40px;
-      border-radius: 8px;
-      background-color: #0076fe;
-      border: none;
-    }
+    :deep(.el-card__body) { padding: 16px 24px; }
+    .search-input { width: 220px; :deep(.el-input__wrapper) { background-color: #f7f8fa; border-radius: 10px; height: 40px; box-shadow: none; } }
+    .query-btn { height: 40px; border-radius: 10px; }
   }
-
   .chat-card {
-    height: 460px;
-    display: flex;
-    flex-direction: column;
-
-    :deep(.el-card__body) {
-      padding: 12px;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chat-header {
-      flex-shrink: 0;
-
-      .avatar-circle {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        font-weight: bold;
-      }
-
-      .view-btn {
-        color: #0076fe;
-        font-weight: 500;
-
-        &:hover {
-          opacity: 0.8;
-          background-color: #eef2ff;
-        }
-      }
-    }
-
-    .chat-logs-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0 4px;
-
-      .msg-item {
-        &:last-child {
-          margin-bottom: 0;
-        }
-      }
-    }
+    height: 480px;
+    :deep(.el-card__body) { padding: 12px; height: 100%; display: flex; flex-direction: column; }
+    .avatar-circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
+    .view-btn { text-decoration: none; &:hover { background-color: #eef2ff; } }
   }
-}
-
-/* Custom Scrollbar for Chat Logs */
-.custom-scrollbar {
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #f0f0f0;
-    border-radius: 10px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-}
-
-.overflow-wrap-anywhere {
-  overflow-wrap: anywhere;
-}
-
-.word-keep-all {
-  word-break: keep-all;
-}
-
-/* Chat Detail Dialog Styles */
-:deep(.chat-detail-dialog) {
-  border-radius: 24px;
-  background-color: #f8f9fb;
-
-  .el-dialog__header {
-    margin-right: 0;
-    padding: 0;
-    border-bottom: 1px solid #f1f3f5;
-  }
-
-  .custom-header {
-    .action-btn {
-      padding: 0;
-      color: #909399;
-      transition: all 0.3s;
-
-      &:hover {
-        color: #0076fe;
-        transform: scale(1.1);
-      }
-
-      &.close-btn:hover {
-        color: #ef4444;
-      }
-    }
-  }
-
-  .el-dialog__body {
-    padding: 24px;
-    background-color: #f8f9fb;
-  }
-
-  .chat-detail-content {
-    height: 500px;
-    overflow-y: auto;
-    padding-right: 10px;
-  }
-
-  .bubble-content {
-    display: inline-block;
-    max-width: 100%;
-    word-break: normal;
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
-    line-height: 1.6;
-  }
+  .custom-scrollbar { &::-webkit-scrollbar { width: 4px; } &::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; } }
+  .word-keep-all { word-break: keep-all; }
+  .overflow-wrap-anywhere { overflow-wrap: anywhere; }
 }
 </style>
