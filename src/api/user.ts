@@ -111,3 +111,27 @@ export const getBackstageUserList = (data?: object) => {
     responseType: "text"
   });
 };
+
+/** 后台登录日志 */
+export const getBackstageLoginLogList = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imloginlog/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 域名推送 */
+export const pushAllHost = (data?: object) => {
+  return http.request<any>("post", "/api/imchat/imsuser/pushAllHost", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 获取七牛域名 */
+export const getQiNiuDomain = (data?: object) => {
+  return http.request<any>("get", "/api/imchat/immessage/image/token", {
+    data,
+    responseType: "text"
+  });
+};

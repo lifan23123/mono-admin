@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { getChatList, getChatRecord } from "@/api/user";
+import { ref, onMounted, nextTick } from "vue";
+import { getChatList, getChatRecord, getQiNiuDomain } from "@/api/user";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import ViewIcon from "~icons/ep/chat-dot-round";
 import RefreshIcon from "~icons/ep/refresh";
@@ -8,19 +8,30 @@ import CloseIcon from "~icons/ep/close";
 import LoadingIcon from "~icons/ep/loading";
 
 defineOptions({
-  name: "MessageSingle"
+  name: "SingleRecord"
 });
 
-// 确保模板可以访问到渲染函数
-const renderIcon = useRenderIcon;
-
+const qiniuDomain = ref("");
 const userQuery = ref("");
+const renderIcon = useRenderIcon;
 const dialogVisible = ref(false);
 const loading = ref(false);
 const pageNo = ref(1);
 const pageSize = ref(20);
 const hasMore = ref(true);
 const chatRooms = ref([]);
+
+const fetchQiNiuDomain = async () => {
+  try {
+    const res = await getQiNiuDomain();
+    const { data } = res as any;
+    if (data) {
+      qiniuDomain.value = data;
+    }
+  } catch (error) {
+    console.error("Failed to fetch QiNiu domain:", error);
+  }
+};
 
 // 详情页状态
 const detailLoading = ref(false);
@@ -51,7 +62,56 @@ const fetchList = async (isAppend = false) => {
       hasMore.value = false;
     }
 
-    const mapped = list.map((item: any) => {
+    // 处理聊天列表中的每个会话
+    const formattedList = list.map(item => {
+      if (item.imMessageList) {
+        // 定义预览专用的 URL 拼接（复用逻辑）
+        const getPreviewUrl = (path: string) => {
+          if (!path) return "";
+          if (path.startsWith("http")) return path;
+          let domainBase = "";
+          if (typeof qiniuDomain.value === "string") {
+            domainBase = qiniuDomain.value;
+          } else if (qiniuDomain.value && typeof qiniuDomain.value === "object") {
+            domainBase = (qiniuDomain.value as any).url || "";
+          }
+          const domain = domainBase.replace(/\/$/, "");
+          const cleanPath = path.startsWith("/") ? path : `/${path}`;
+          return domain + cleanPath;
+        };
+
+        // 先反转，再解析每个消息
+        item.imMessageList = item.imMessageList.reverse().map((msg: any) => {
+          let parsed: any = { msgType: 1, content: msg.content };
+          try {
+            parsed = JSON.parse(msg.content);
+          } catch (e) {
+            /* fallback */
+          }
+
+          const mType = Number(parsed.msgType);
+          let displayContent = parsed.content;
+
+          if (mType === 3) {
+            const imgs = Array.isArray(parsed.content) ? parsed.content : [parsed.content];
+            displayContent = imgs.map((img: any) => ({ ...img, fullUrl: getPreviewUrl(img.url) }));
+          } else if (mType === 4) {
+            displayContent = { ...parsed, videoUrl: getPreviewUrl(parsed.videoUrl), coverUrl: getPreviewUrl(parsed.url) };
+          } else if (mType === 5) {
+            displayContent = { ...parsed, audioUrl: getPreviewUrl(parsed.url) };
+          }
+
+          return {
+            ...msg,
+            type: mType,
+            formattedContent: displayContent
+          };
+        });
+      }
+      return item;
+    });
+
+    const mapped = formattedList.map((item: any) => {
       const userA = item.managerUsers?.[0] || {};
       const userB = item.managerUsers?.[1] || userA;
 
@@ -107,10 +167,23 @@ const loadMore = () => {
 
 onMounted(() => {
   fetchList();
+  fetchQiNiuDomain();
 });
 
 const handleQuery = () => {
   fetchList(false);
+};
+
+// 维护用户名与左右边位的映射
+const nameSideMap = new Map<string, "left" | "right">();
+let lastAssignedSide: "left" | "right" = "right"; // 默认让第一个人为左，则前一个假设为右
+
+const playAudio = (url: string) => {
+  if (!url) return;
+  const audio = new Audio(url);
+  audio.play().catch(e => {
+    console.error("Audio play failed:", e);
+  });
 };
 
 // 获取详情列表
@@ -121,6 +194,8 @@ const fetchDetail = async (isAppend = false) => {
     detailPageNo.value = 1;
     detailHasMore.value = true;
     detailMessages.value = [];
+    nameSideMap.clear(); // 切换会话时清空映射表
+    lastAssignedSide = "right"; // Reset for new chat
   }
 
   try {
@@ -143,28 +218,91 @@ const fetchDetail = async (isAppend = false) => {
       detailHasMore.value = false;
     }
 
-    const mapped = list.map((msg: any, index: number) => {
-      let actualContent = msg.content;
+    // 反转列表，使时间最早的在前
+    const mapped = [...list].reverse().map((msg: any) => {
+      let parsed: any = { msgType: 1, content: msg.content };
       try {
-        const parsed = JSON.parse(msg.content);
-        actualContent = parsed.content || parsed.text || msg.content;
+        parsed = JSON.parse(msg.content);
       } catch (e) {
-        /* Plain text */
+        /* 非 JSON 处理 */
       }
+
+      const mType = Number(parsed.msgType);
+      let displayContent: any = parsed.content;
+
+      // 域名拼接工具
+      const getUrl = (path: string) => {
+        if (!path) return "";
+        if (path.startsWith("http")) return path;
+        
+        // 兼容 qiniuDomain 是对象还是字符串的情况
+        let domainBase = "";
+        if (typeof qiniuDomain.value === "string") {
+          domainBase = qiniuDomain.value;
+        } else if (qiniuDomain.value && typeof qiniuDomain.value === "object") {
+          domainBase = (qiniuDomain.value as any).url || "";
+        }
+
+        const domain = domainBase.replace(/\/$/, "");
+        const cleanPath = path.startsWith("/") ? path : `/${path}`;
+        return domain + cleanPath;
+      };
+
+      if (mType === 3) {
+        // 图片：可能是数组
+        const imgs = Array.isArray(parsed.content)
+          ? parsed.content
+          : [parsed.content];
+        displayContent = imgs.map((item: any) => ({
+          ...item,
+          fullUrl: getUrl(item.url)
+        }));
+      } else if (mType === 4) {
+        // 视频
+        displayContent = {
+          ...parsed,
+          videoUrl: getUrl(parsed.videoUrl),
+          coverUrl: getUrl(parsed.url)
+        };
+      } else if (mType === 5) {
+        // 语音
+        displayContent = {
+          ...parsed,
+          audioUrl: getUrl(parsed.url)
+        };
+      }
+
+      // 根据唯一ID获取当前用户的显示侧
+      const userId = msg.sendId;
+      if (!nameSideMap.has(userId)) {
+        const side = lastAssignedSide === "left" ? "right" : "left";
+        nameSideMap.set(userId, side);
+        lastAssignedSide = side;
+      }
+
       return {
+        id: msg.id,
         nickname: msg.sendUserName || "用户",
         avatar: msg.sendUserIcon || "",
-        side: msg.sendId === currentChatId.value ? "right" : "left", // 这里逻辑可根据实际返回调整，暂时交替或固定
-        type: "text", // 暂时默认为 text
-        content: actualContent,
+        side: nameSideMap.get(userId),
+        type: mType,
+        content: displayContent,
         time: msg.createTime
       };
     });
 
     if (isAppend) {
-      detailMessages.value.push(...mapped);
+      // 加载更多（历史记录）应当插入到顶部
+      detailMessages.value = [...mapped, ...detailMessages.value];
     } else {
       detailMessages.value = mapped;
+      // 首次加载滚动到底部以查看最新
+      nextTick(() => {
+        const container = document.querySelector(".chat-detail-content");
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
     }
   } catch (error) {
     console.error("Fetch chat records failed:", error);
@@ -289,15 +427,42 @@ const openChatDialog = (room: any) => {
               >
                 <div
                   :class="[
-                    'msg-text text-sm py-3 px-4 rounded-xl shadow-sm leading-relaxed min-w-[80px]',
-                    msg.side === 'left'
-                      ? 'bg-gray-100 text-gray-700 rounded-tl-none text-left'
-                      : 'bg-blue-500 text-white rounded-tr-none text-right'
+                    'bubble p-2 text-sm rounded-lg shadow-sm',
+                    msg.sendId === room.managerUsers?.[0]?.id 
+                      ? 'bg-white text-gray-800' 
+                      : 'bg-blue-500 text-white'
                   ]"
                 >
-                  {{ msg.text }}
+                  <!-- Text -->
+                  <div v-if="msg.type === 1 || msg.type === 2">
+                    {{ msg.content }}
+                  </div>
+
+                  <!-- Image Preview -->
+                  <div v-else-if="msg.type === 3" class="flex gap-1 overflow-hidden">
+                    <el-image
+                      v-if="msg.content?.[0]"
+                      :src="msg.content[0].fullUrl"
+                      :preview-src-list="[msg.content[0].fullUrl]"
+                      fit="cover"
+                      class="w-16 h-16 rounded border border-gray-100"
+                      preview-teleported
+                    />
+                  </div>
+
+                  <!-- Video Preview -->
+                  <div v-else-if="msg.type === 4" class="flex items-center gap-1">
+                    <component :is="useRenderIcon('ri:video-fill')" class="text-lg" />
+                    <span>视频记录</span>
+                  </div>
+
+                  <!-- Audio Preview -->
+                  <div v-else-if="msg.type === 5" class="flex items-center gap-1">
+                    <component :is="useRenderIcon('ri:volume-up-fill')" class="text-lg" />
+                    <span>{{ msg.content.duration }}s 语音</span>
+                  </div>
                 </div>
-                <div class="msg-time text-[10px] text-gray-300 mt-1">
+                <div class="text-[10px] text-gray-300 mt-1 opacity-70 px-1">
                   {{ msg.time }}
                 </div>
               </div>
@@ -332,7 +497,9 @@ const openChatDialog = (room: any) => {
     >
       <template #header="{ close }">
         <div class="custom-header flex items-center justify-between px-6 py-4">
-          <span class="text-base font-bold text-gray-800">{{ currentChatName }}</span>
+          <span class="text-base font-bold text-gray-800">{{
+            currentChatName
+          }}</span>
           <div class="header-actions flex items-center gap-4">
             <el-button
               link
@@ -347,7 +514,7 @@ const openChatDialog = (room: any) => {
           </div>
         </div>
       </template>
-      <div 
+      <div
         class="chat-detail-content custom-scrollbar"
         v-infinite-scroll="loadMoreDetail"
         :infinite-scroll-disabled="!detailHasMore || detailLoading"
@@ -377,14 +544,19 @@ const openChatDialog = (room: any) => {
                 : 'text-left items-start',
               'flex flex-col'
             ]"
+            :style="
+              msg.side === 'right'
+                ? 'margin-right: 0; max-width: 90%;'
+                : 'margin-left: 0; max-width: 90%;'
+            "
           >
             <div class="nickname text-xs text-gray-400 mb-1">
               {{ msg.nickname }}
             </div>
 
-            <!-- Text Bubble -->
+            <!-- Text Bubble (Type 1 or 2) -->
             <div
-              v-if="msg.type === 'text'"
+              v-if="msg.type === 1 || msg.type === 2"
               :class="[
                 'bubble-content p-3 text-sm shadow-sm',
                 msg.side === 'left'
@@ -393,6 +565,45 @@ const openChatDialog = (room: any) => {
               ]"
             >
               {{ msg.content }}
+            </div>
+
+            <!-- Image Message (Type 3) -->
+            <div v-else-if="msg.type === 3" class="media-container flex flex-wrap gap-2">
+              <el-image
+                v-for="(img, i) in msg.content"
+                :key="i"
+                :src="img.fullUrl"
+                :preview-src-list="[img.fullUrl]"
+                fit="cover"
+                class="rounded-lg w-32 h-32 cursor-pointer shadow-sm hover:opacity-90 transition-opacity"
+                preview-teleported
+              />
+            </div>
+
+            <!-- Video Message (Type 4) -->
+            <div v-else-if="msg.type === 4" class="media-container max-w-[320px]">
+              <div class="relative rounded-lg overflow-hidden shadow-sm bg-black group">
+                <video
+                  :src="msg.content.videoUrl"
+                  :poster="msg.content.coverUrl"
+                  controls
+                  class="w-full h-auto block"
+                />
+              </div>
+            </div>
+
+            <!-- Audio Message (Type 5) -->
+            <div v-else-if="msg.type === 5" class="media-container">
+              <div
+                :class="[
+                  'audio-bubble p-3 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-colors',
+                  msg.side === 'left' ? 'bg-white text-gray-800' : 'bg-blue-500 text-white'
+                ]"
+                @click="playAudio(msg.content.audioUrl)"
+              >
+                <component :is="useRenderIcon('ri:volume-up-fill')" class="text-xl" />
+                <span class="text-xs font-medium">{{ msg.content.duration }}s</span>
+              </div>
             </div>
 
             <div class="time text-xs text-gray-300 mt-2">{{ msg.time }}</div>
@@ -409,11 +620,18 @@ const openChatDialog = (room: any) => {
 
         <!-- Detail Loading Footer -->
         <div class="scroll-footer py-2 text-center text-gray-400 text-[12px]">
-          <div v-if="detailLoading" class="flex justify-center items-center py-2">
-            <el-icon class="is-loading mr-2"><component :is="useRenderIcon(LoadingIcon)" /></el-icon>
+          <div
+            v-if="detailLoading"
+            class="flex justify-center items-center py-2"
+          >
+            <el-icon class="is-loading mr-2"
+              ><component :is="useRenderIcon(LoadingIcon)"
+            /></el-icon>
             加载历史记录...
           </div>
-          <div v-else-if="!detailHasMore && detailMessages.length > 0">没有更多消息了</div>
+          <div v-else-if="!detailHasMore && detailMessages.length > 0">
+            没有更多消息了
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -563,15 +781,18 @@ const openChatDialog = (room: any) => {
   }
 
   .chat-detail-content {
-    max-height: 500px;
+    height: 500px;
     overflow-y: auto;
     padding-right: 10px;
   }
 
   .bubble-content {
     display: inline-block;
-    max-width: 80%;
-    word-break: break-all;
+    max-width: 100%;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    line-height: 1.6;
   }
 }
 </style>
