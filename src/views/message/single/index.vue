@@ -80,14 +80,15 @@ const fetchList = async (isAppend = false) => {
           return domain + cleanPath;
         };
 
-        // 先反转，再解析每个消息
+        // 为每个房间建立独立的消息分侧策略
+        const roomSideMap = new Map<any, "left" | "right">();
+        let roomLastSide: "left" | "right" = "right";
+
         item.imMessageList = item.imMessageList.reverse().map((msg: any) => {
           let parsed: any = { msgType: 1, content: msg.content };
           try {
             parsed = JSON.parse(msg.content);
-          } catch (e) {
-            /* fallback */
-          }
+          } catch (e) {}
 
           const mType = Number(parsed.msgType);
           let displayContent = parsed.content;
@@ -101,10 +102,20 @@ const fetchList = async (isAppend = false) => {
             displayContent = { ...parsed, audioUrl: getPreviewUrl(parsed.url) };
           }
 
+          // 分侧逻辑
+          const userId = msg.sendId;
+          if (!roomSideMap.has(userId)) {
+            const side = roomLastSide === "left" ? "right" : "left";
+            roomSideMap.set(userId, side);
+            roomLastSide = side;
+          }
+
           return {
             ...msg,
             type: mType,
-            formattedContent: displayContent
+            formattedContent: displayContent,
+            side: roomSideMap.get(userId),
+            time: msg.createTime // 确保时间字段存在
           };
         });
       }
@@ -117,6 +128,7 @@ const fetchList = async (isAppend = false) => {
 
       return {
         id: item.id,
+        managerUsers: item.managerUsers, // 显式保留参与者信息用于颜色判断
         userA: {
           nickname: userA.name || userA.loginName || "用户A",
           uid: userA.id,
@@ -127,23 +139,8 @@ const fetchList = async (isAppend = false) => {
           uid: userB.id,
           avatarInitial: (userB.name || "B").substring(0, 1)
         },
-        messages: (item.imMessageList || [])
-          .slice()
-          .reverse()
-          .map((msg: any, index: number) => {
-            let actualContent = msg.content;
-            try {
-              const parsed = JSON.parse(msg.content);
-              actualContent = parsed.content || parsed.text || msg.content;
-            } catch (e) {
-              /* Keep original */
-            }
-            return {
-              text: actualContent,
-              time: msg.createTime,
-              side: index % 2 === 0 ? "left" : "right"
-            };
-          })
+        // 直接使用前面已经 formatted 过的列表，不要重新 map
+        messages: item.imMessageList || []
       };
     });
 
@@ -414,57 +411,60 @@ const openChatDialog = (room: any) => {
             <div
               v-for="(msg, index) in room.messages"
               :key="index"
-              :class="[
-                'msg-item mb-4 flex',
-                msg.side === 'right' ? 'justify-end' : 'justify-start'
-              ]"
+              class="msg-wrapper mb-5"
             >
+              <!-- Bubble Container -->
               <div
                 :class="[
-                  'msg-inner max-w-[90%]',
-                  msg.side === 'right' ? 'text-right' : 'text-left'
+                  'flex w-full',
+                  msg.side === 'right' ? 'flex-row-reverse' : 'flex-row'
                 ]"
               >
                 <div
                   :class="[
-                    'bubble p-2 text-sm rounded-lg shadow-sm',
-                    msg.sendId === room.managerUsers?.[0]?.id 
+                    'bubble p-3 text-sm rounded-xl shadow-sm leading-relaxed max-w-[95%] w-fit whitespace-pre-wrap overflow-wrap-anywhere word-keep-all text-left block',
+                    msg.side === 'left' 
                       ? 'bg-white text-gray-800' 
-                      : 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-700 border border-gray-100'
                   ]"
                 >
-                  <!-- Text -->
+                  <!-- Text Content -->
                   <div v-if="msg.type === 1 || msg.type === 2">
-                    {{ msg.content }}
+                    {{ msg.formattedContent }}
                   </div>
 
-                  <!-- Image Preview -->
+                  <!-- Image Content -->
                   <div v-else-if="msg.type === 3" class="flex gap-1 overflow-hidden">
                     <el-image
-                      v-if="msg.content?.[0]"
-                      :src="msg.content[0].fullUrl"
-                      :preview-src-list="[msg.content[0].fullUrl]"
+                      v-if="msg.formattedContent?.[0]"
+                      :src="msg.formattedContent[0].fullUrl"
+                      :preview-src-list="[msg.formattedContent[0].fullUrl]"
                       fit="cover"
-                      class="w-16 h-16 rounded border border-gray-100"
+                      class="w-20 h-20 rounded border border-gray-100"
                       preview-teleported
                     />
                   </div>
 
-                  <!-- Video Preview -->
+                  <!-- Video / Audio Placeholder -->
                   <div v-else-if="msg.type === 4" class="flex items-center gap-1">
-                    <component :is="useRenderIcon('ri:video-fill')" class="text-lg" />
-                    <span>视频记录</span>
+                    <component :is="useRenderIcon('ri:video-fill')" class="text-lg opacity-60" />
+                    <span>视频消息</span>
                   </div>
-
-                  <!-- Audio Preview -->
                   <div v-else-if="msg.type === 5" class="flex items-center gap-1">
-                    <component :is="useRenderIcon('ri:volume-up-fill')" class="text-lg" />
-                    <span>{{ msg.content.duration }}s 语音</span>
+                    <component :is="useRenderIcon('ri:volume-up-fill')" class="text-lg opacity-60" />
+                    <span>{{ msg.formattedContent.duration }}s 语音</span>
                   </div>
                 </div>
-                <div class="text-[10px] text-gray-300 mt-1 opacity-70 px-1">
-                  {{ msg.time }}
-                </div>
+              </div>
+
+              <!-- Time Below Bubble -->
+              <div 
+                :class="[
+                  'text-[10px] text-gray-300 mt-1.5 px-1',
+                  msg.side === 'right' ? 'text-right' : 'text-left'
+                ]"
+              >
+                {{ msg.time }}
               </div>
             </div>
           </div>
@@ -745,6 +745,14 @@ const openChatDialog = (room: any) => {
   &::-webkit-scrollbar-track {
     background: transparent;
   }
+}
+
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+.word-keep-all {
+  word-break: keep-all;
 }
 
 /* Chat Detail Dialog Styles */
