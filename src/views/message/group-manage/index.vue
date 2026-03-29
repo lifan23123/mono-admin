@@ -278,7 +278,7 @@ onMounted(() => {
     <ChatRecordDialog v-model:visible="dialogVisible" :chat-id="currentChatId" :chat-name="currentChatName" :qiniu-domain="qiniuDomain" :type="2" />
 
     <!-- 人员信息弹窗 -->
-    <el-dialog v-model="memberDialogVisible" title="人员信息" width="600px" align-center class="custom-dialog">
+    <el-dialog v-model="memberDialogVisible" title="人员信息" width="600px" align-center class="custom-dialog" append-to-body>
       <div class="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         <div v-if="currentMembers.length > 0">
           <div class="mb-6">

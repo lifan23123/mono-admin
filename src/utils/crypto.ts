@@ -1,58 +1,52 @@
+import { gcm } from "@noble/ciphers/aes.js";
+import { randomBytes } from "@noble/ciphers/utils.js";
+
 const IV_LENGTH = 12;
-const TAG_LENGTH = 128;
-const ALGORITHM = "AES-GCM";
-
-let cryptoKey: CryptoKey | null = null;
+const SECRET_KEY_BASE64 = "UrOkTeAYoyhaVnSoDfx0fT52lbRIbBMisYqlUWiq+DY=";
 
 /**
- * 初始化密钥（Base64 字符串）
+ * 将 Base64 字符串解码为 Uint8Array
  */
-export async function initSecretKey(base64Key: string): Promise<CryptoKey> {
-  const keyBytes = Uint8Array.from(atob(base64Key), c => c.charCodeAt(0));
-  cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    { name: ALGORITHM, length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
-  return cryptoKey;
-}
-
-async function ensureKey(): Promise<CryptoKey> {
-  if (!cryptoKey) {
-    await initSecretKey("UrOkTeAYoyhaVnSoDfx0fT52lbRIbBMisYqlUWiq+DY=");
-  }
-  return cryptoKey!;
+function base64ToBytes(base64: string): Uint8Array {
+  return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 }
 
 /**
- * 加密：明文 -> Base64(IV + 密文)
+ * 将 Uint8Array 编码为 Base64 字符串
  */
-export async function encrypt(plainText: string): Promise<string> {
-  const key = await ensureKey();
-  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-  const encoded = new TextEncoder().encode(plainText);
-
-  const cipherText = await crypto.subtle.encrypt(
-    {
-      name: ALGORITHM,
-      iv,
-      tagLength: TAG_LENGTH
-    },
-    key,
-    encoded
-  );
-
-  const result = new Uint8Array(IV_LENGTH + cipherText.byteLength);
-  result.set(iv, 0);
-  result.set(new Uint8Array(cipherText), IV_LENGTH);
-
+function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
-  for (let i = 0; i < result.length; i++) {
-    binary += String.fromCharCode(result[i]);
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
   return btoa(binary);
+}
+
+/**
+ * 获取密钥字节
+ */
+function getKeyBytes(): Uint8Array {
+  return base64ToBytes(SECRET_KEY_BASE64);
+}
+
+/**
+ * 加密：明文 -> Base64(IV + 密文 + TAG)
+ * 使用 @noble/ciphers 的纯 JS 实现，兼容 HTTP 环境
+ */
+export async function encrypt(plainText: string): Promise<string> {
+  const key = getKeyBytes();
+  const iv = randomBytes(IV_LENGTH);
+  const encoded = new TextEncoder().encode(plainText);
+
+  const aes = gcm(key, iv);
+  const cipherText = aes.encrypt(encoded);
+
+  // cipherText 包含密文 + 16字节 TAG
+  const result = new Uint8Array(IV_LENGTH + cipherText.length);
+  result.set(iv, 0);
+  result.set(cipherText, IV_LENGTH);
+
+  return bytesToBase64(result);
 }
 
 /**
@@ -74,28 +68,19 @@ function cleanBase64(str: string): string {
 }
 
 /**
- * 解密：Base64(IV + 密文) -> 明文
+ * 解密：Base64(IV + 密文 + TAG) -> 明文
+ * 使用 @noble/ciphers 的纯 JS 实现，兼容 HTTP 环境
  */
 export async function decrypt(encryptedText: string): Promise<string> {
-  const key = await ensureKey();
+  const key = getKeyBytes();
   const cleaned = cleanBase64(encryptedText);
-  // console.log("清理后的 Base64 前20字符:", cleaned.substring(0, 20));
-  const encryptedBytes = Uint8Array.from(atob(cleaned), c =>
-    c.charCodeAt(0)
-  );
+  const encryptedBytes = base64ToBytes(cleaned);
 
   const iv = encryptedBytes.slice(0, IV_LENGTH);
   const cipherText = encryptedBytes.slice(IV_LENGTH);
 
-  const plainBytes = await crypto.subtle.decrypt(
-    {
-      name: ALGORITHM,
-      iv,
-      tagLength: TAG_LENGTH
-    },
-    key,
-    cipherText
-  );
+  const aes = gcm(key, iv);
+  const plainBytes = aes.decrypt(cipherText);
 
   return new TextDecoder().decode(plainBytes);
 }

@@ -11,7 +11,8 @@ defineOptions({
 const formRef = ref<FormInstance>();
 const pushForm = reactive({
   qq: "",
-  domain: ""
+  domain: "",
+  imgUrl: ""
 });
 
 const loading = ref(false);
@@ -41,7 +42,8 @@ const handlePush = async () => {
       try {
         const { code } = await pushAllHost({
           qq: pushForm.qq,
-          url: pushForm.domain
+          url: pushForm.domain,
+          imgUrl: pushForm.imgUrl
         });
 
         if (code === "0000") {
@@ -50,6 +52,7 @@ const handlePush = async () => {
           // 手动重置一下，因为 resetFields 有时没法清除自定义校验
           pushForm.qq = "";
           pushForm.domain = "";
+          pushForm.imgUrl = "";
         }
       } catch (error) {
         console.error("Push failed:", error);
@@ -96,6 +99,18 @@ const handlePush = async () => {
               <el-input
                 v-model="pushForm.domain"
                 placeholder="请输入推送域名"
+                class="custom-input"
+                clearable
+              />
+            </el-form-item>
+          </el-col>
+
+          <!-- Image URL Input -->
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="图片地址" prop="imgUrl">
+              <el-input
+                v-model="pushForm.imgUrl"
+                placeholder="请输入图片地址"
                 class="custom-input"
                 clearable
               />

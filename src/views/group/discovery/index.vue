@@ -222,6 +222,7 @@ const handleDelete = (row: any) => {
       width="440px"
       align-center
       class="custom-dialog"
+      append-to-body
     >
       <el-form label-position="top">
         <el-form-item label="名称">
@@ -356,39 +357,10 @@ const handleDelete = (row: any) => {
     }
   }
 }
+</style>
 
-/* Dialog Styles */
-:deep(.custom-dialog) {
-  border-radius: 20px;
-  overflow: hidden;
-  
-  .el-dialog__header {
-    margin-right: 0;
-    padding: 24px 24px 12px;
-    .el-dialog__title {
-      font-weight: bold;
-      font-size: 18px;
-    }
-  }
-  
-  .el-dialog__body {
-    padding: 12px 24px 24px;
-  }
-  
-  .el-form-item__label {
-    color: #333;
-    font-weight: 500;
-    padding-bottom: 8px;
-  }
-  
-  .el-input__wrapper {
-    background-color: #f7f8fa;
-    box-shadow: none;
-    border-radius: 8px;
-    height: 48px;
-    border: none;
-  }
-
+<style lang="scss">
+.custom-dialog {
   .icon-upload-box {
     width: 120px;
     height: 120px;
@@ -408,32 +380,6 @@ const handleDelete = (row: any) => {
 
     &:hover {
       border-color: #0076fe;
-    }
-  }
-
-  .dialog-footer {
-    display: flex;
-    justify-content: center;
-    padding: 20px 0 10px;
-    
-    .el-button {
-      height: 44px;
-      border-radius: 12px;
-      padding: 0 45px;
-      font-size: 16px;
-    }
-    
-    .cancel-btn {
-      border: 1px solid #dcdfe6;
-      color: #606266;
-    }
-    
-    .submit-btn {
-      background-color: #0076fe;
-      border: none;
-      &:hover {
-        background-color: #3391ff;
-      }
     }
   }
 }

@@ -19,10 +19,13 @@ const pageSize = ref(20);
 const hasMore = ref(true);
 const chatRooms = ref([]);
 
-// 弹窗状态
 const dialogVisible = ref(false);
 const currentChatId = ref("");
 const currentChatName = ref("");
+
+const playingMsgId = ref<string | number | null>(null);
+let currentAudio: HTMLAudioElement | null = null;
+
 
 const fetchQiNiuDomain = async () => {
   try {
@@ -43,6 +46,36 @@ const getUrl = (path: string) => {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
   return domain + cleanPath;
 };
+
+const playAudio = (msg: any) => {
+  const url = msg.formattedContent.audioUrl;
+  if (!url) return;
+
+  if (currentAudio) {
+    currentAudio.pause();
+    if (playingMsgId.value === msg.id) {
+      playingMsgId.value = null;
+      currentAudio = null;
+      return;
+    }
+  }
+
+  const audio = new Audio(url);
+  currentAudio = audio;
+  playingMsgId.value = msg.id;
+
+  audio.play().catch(e => {
+    console.error("Audio play failed:", e);
+    playingMsgId.value = null;
+  });
+
+  audio.onended = () => {
+    playingMsgId.value = null;
+    currentAudio = null;
+  };
+};
+
+
 
 const fetchList = async (isAppend = false) => {
   if (loading.value) return;
@@ -76,9 +109,21 @@ const fetchList = async (isAppend = false) => {
         if (mType === 3) {
           const imgs = Array.isArray(parsed.content) ? parsed.content : [parsed.content];
           displayContent = imgs.map((img: any) => ({ ...img, fullUrl: getUrl(img.url) }));
-        } else if (mType === 4 || mType === 5) {
-          displayContent = { ...parsed, fullUrl: getUrl(parsed.url || parsed.videoUrl) };
+        } else if (mType === 4) {
+          const videoData = typeof parsed.content === "object" ? parsed.content : {};
+          displayContent = {
+            ...videoData,
+            videoUrl: getUrl(videoData.videoUrl || parsed.videoUrl),
+            coverUrl: getUrl(videoData.imgUrl || parsed.url)
+          };
+        } else if (mType === 5) {
+          const audioData = typeof parsed.content === "object" ? parsed.content : {};
+          displayContent = {
+            ...audioData,
+            audioUrl: getUrl(audioData.url || parsed.url)
+          };
         }
+
 
         const userId = msg.sendId;
         if (!roomSideMap.has(userId)) {
@@ -201,10 +246,35 @@ const openChatDialog = (room: any) => {
                   <div v-else-if="msg.type === 3" class="flex gap-1 overflow-hidden">
                     <el-image v-if="msg.formattedContent?.[0]" :src="msg.formattedContent[0].fullUrl" :preview-src-list="[msg.formattedContent[0].fullUrl]" fit="cover" class="w-20 h-20 rounded shadow-sm" preview-teleported />
                   </div>
-                  <div v-else class="flex items-center gap-2 opacity-60">
-                    <component :is="useRenderIcon(msg.type === 4 ? 'ri:video-fill' : 'ri:volume-up-fill')" />
-                    <span>{{ msg.type === 4 ? '视频消息' : '语音消息' }}</span>
+                  <div v-else-if="msg.type === 4" class="max-w-[200px]">
+                    <video
+                      :src="msg.formattedContent.videoUrl"
+                      :poster="msg.formattedContent.coverUrl"
+                      controls
+                      class="w-full rounded shadow-sm"
+                    />
                   </div>
+                  <div
+                    v-else-if="msg.type === 5"
+                    class="flex items-center gap-3 cursor-pointer p-2 transition-all active:scale-95"
+                    @click="playAudio(msg)"
+                  >
+                    <div v-if="playingMsgId === msg.id" class="voice-waves">
+                      <div class="wave-bar" />
+                      <div class="wave-bar" />
+                      <div class="wave-bar" />
+                    </div>
+                    <template v-else>
+                      <component :is="useRenderIcon('ri:volume-up-fill')" class="text-blue-500" />
+                      <span class="text-xs font-bold">{{ msg.formattedContent.duration }}s</span>
+                    </template>
+                  </div>
+
+                  <div v-else class="flex items-center gap-2 opacity-60">
+                    <component :is="useRenderIcon('ri:chat-3-line')" />
+                    <span>未知消息</span>
+                  </div>
+
                 </div>
               </div>
               <div class="text-[10px] text-gray-300 mt-1.5 px-1" :class="msg.side === 'right' ? 'text-right' : 'text-left'">{{ msg.time }}</div>
@@ -252,5 +322,27 @@ const openChatDialog = (room: any) => {
   .custom-scrollbar { &::-webkit-scrollbar { width: 4px; } &::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; } }
   .word-keep-all { word-break: keep-all; }
   .overflow-wrap-anywhere { overflow-wrap: anywhere; }
+
+  .voice-waves {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 14px;
+    .wave-bar {
+      width: 2.5px;
+      height: 100%;
+      background: #3b82f6;
+      border-radius: 1px;
+      animation: wave-breath 0.8s ease-in-out infinite;
+      &:nth-child(2) { animation-delay: 0.15s; height: 70%; }
+      &:nth-child(3) { animation-delay: 0.3s; height: 50%; }
+    }
+  }
+
+  @keyframes wave-breath {
+    0%, 100% { height: 4px; }
+    50% { height: 14px; }
+  }
 }
+
 </style>

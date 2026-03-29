@@ -237,12 +237,11 @@ onUnmounted(() => {
     </el-card>
 
     <!-- Comparison Group Card (Title + 4 Core Stats) -->
-    <el-card
+    <!-- <el-card
       shadow="never"
       class="main-comparison-card mb-4 border-none border-radius-16"
     >
       <el-row :gutter="0">
-        <!-- New Users Module -->
         <el-col :xs="24" :md="12" class="comparison-module relative pr-8">
           <div class="flex items-center h-full">
             <div class="main-stat text-center p-6 bg-gray-50 border-radius-12">
@@ -287,13 +286,11 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
-          <!-- Internal Divider Line -->
           <div
             class="absolute right-0 top-1/2 -translate-y-1/2 w-[1px] h-16 bg-gray-100 hidden md:block"
           ></div>
         </el-col>
 
-        <!-- Daily Active Users Module -->
         <el-col :xs="24" :md="12" class="comparison-module pl-8">
           <div class="flex items-center h-full">
             <div class="main-stat text-center p-6 bg-gray-50 border-radius-12">
@@ -340,7 +337,8 @@ onUnmounted(() => {
           </div>
         </el-col>
       </el-row>
-    </el-card>
+    </el-card> -->
+
 
     <!-- Charts Group Card -->
     <!-- <el-card

@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { getBackstageUserList } from "@/api/user";
+import { ref, reactive, onMounted } from "vue";
+import { getBackstageUserList, getBackstageUserUpdate } from "@/api/user";
+import { message } from "@/utils/message";
+import { ElMessageBox } from "element-plus";
 
 defineOptions({
   name: "BackendUser"
@@ -51,6 +53,64 @@ const handleSizeChange = (val: number) => {
 const handleCurrentChange = (val: number) => {
   currentPage.value = val;
   fetchList();
+};
+
+// Edit Functionality
+const editDialogVisible = ref(false);
+const editForm = reactive({
+  id: "",
+  loginName: "",
+  name: ""
+});
+
+const openEditDialog = (row: any) => {
+  editForm.id = row.id;
+  editForm.loginName = row.loginName;
+  editForm.name = row.name;
+  editDialogVisible.value = true;
+};
+
+const submitEdit = async () => {
+  try {
+    const res = await getBackstageUserUpdate({
+      id: editForm.id,
+      loginName: editForm.loginName,
+      name: editForm.name
+    });
+    if ((res as any).code === "0000") {
+      message("修改成功", { type: "success" });
+      editDialogVisible.value = false;
+      fetchList();
+    } else {
+      message((res as any).message || "修改失败", { type: "error" });
+    }
+  } catch (error) {
+    message("操作异常", { type: "error" });
+  }
+};
+
+const handleResetPassword = (row: any) => {
+  ElMessageBox.confirm(`确认要将用户「${row.loginName}」的密码重置为 111111 吗？`, "提示", {
+    confirmButtonText: "确定",
+    cancelButtonText: "取消",
+    type: "warning"
+  }).then(async () => {
+    try {
+      const res = await getBackstageUserUpdate({
+        id: row.id,
+        loginName: row.loginName,
+        pwd: "111111"
+      });
+      if ((res as any).code === "0000") {
+        message("密码重置成功", { type: "success" });
+        fetchList();
+      } else {
+        message((res as any).message || "重置失败", { type: "error" });
+      }
+    } catch (e) {
+      message("重置异常", { type: "error" });
+    }
+  });
 };
 </script>
 
@@ -114,9 +174,9 @@ const handleCurrentChange = (val: number) => {
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" align="center">
-          <template #default>
-            <el-button link type="primary" class="op-link">修改</el-button>
-            <el-button link type="primary" class="op-link">重置密码</el-button>
+          <template #default="scope">
+            <el-button link type="primary" class="op-link" @click="openEditDialog(scope.row)">编辑</el-button>
+            <el-button link type="primary" class="op-link" @click="handleResetPassword(scope.row)">重置密码</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -138,6 +198,31 @@ const handleCurrentChange = (val: number) => {
         </el-pagination>
       </div>
     </el-card>
+
+    <!-- Edit Dialog -->
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑用户"
+      width="440px"
+      align-center
+      class="custom-dialog"
+      append-to-body
+    >
+      <el-form label-position="top">
+        <el-form-item label="用户名">
+          <el-input v-model="editForm.loginName" placeholder="请输入用户名" />
+        </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="editForm.name" placeholder="请输入昵称" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="editDialogVisible = false" class="cancel-btn">取消</el-button>
+          <el-button type="primary" @click="submitEdit" class="submit-btn ml-4">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -263,3 +348,4 @@ const handleCurrentChange = (val: number) => {
   }
 }
 </style>
+

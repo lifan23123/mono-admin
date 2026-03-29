@@ -21,6 +21,9 @@ const pageNo = ref(1);
 const pageSize = ref(100);
 const hasMore = ref(true);
 const messages = ref([]);
+const playingMsgId = ref<string | number | null>(null);
+let currentAudio: HTMLAudioElement | null = null;
+
 
 // 内部维护分侧逻辑 (仅在 type=1 时生效)
 const sideMap = new Map<any, "left" | "right">();
@@ -41,10 +44,34 @@ const getUrl = (path: string) => {
   return domain + cleanPath;
 };
 
-const playAudio = (url: string) => {
+const playAudio = (msg: any) => {
+  const url = msg.content.audioUrl;
   if (!url) return;
-  new Audio(url).play().catch(e => console.error("Audio play failed:", e));
+
+  if (currentAudio) {
+    currentAudio.pause();
+    if (playingMsgId.value === msg.id) {
+      playingMsgId.value = null;
+      currentAudio = null;
+      return;
+    }
+  }
+
+  const audio = new Audio(url);
+  currentAudio = audio;
+  playingMsgId.value = msg.id;
+
+  audio.play().catch(e => {
+    console.error("Audio play failed:", e);
+    playingMsgId.value = null;
+  });
+
+  audio.onended = () => {
+    playingMsgId.value = null;
+    currentAudio = null;
+  };
 };
+
 
 const fetchDetail = async (isAppend = false) => {
   if (loading.value || !props.chatId) return;
@@ -91,13 +118,20 @@ const fetchDetail = async (isAppend = false) => {
           fullUrl: getUrl(img.url)
         }));
       } else if (mType === 4) {
+        const videoData =
+          typeof parsed.content === "object" ? parsed.content : {};
         displayContent = {
-          ...parsed,
-          videoUrl: getUrl(parsed.videoUrl),
-          coverUrl: getUrl(parsed.url)
+          ...videoData,
+          videoUrl: getUrl(videoData.videoUrl || parsed.videoUrl),
+          coverUrl: getUrl(videoData.imgUrl || parsed.url)
         };
       } else if (mType === 5) {
-        displayContent = { ...parsed, audioUrl: getUrl(parsed.url) };
+        const audioData =
+          typeof parsed.content === "object" ? parsed.content : {};
+        displayContent = {
+          ...audioData,
+          audioUrl: getUrl(audioData.url || parsed.url)
+        };
       }
 
       // 布局逻辑判断: type 1 分侧, type 2 统一左侧
@@ -161,6 +195,7 @@ const handleClose = () => {
     class="chat-record-dialog"
     :show-close="false"
     destroy-on-close
+    append-to-body
     @close="handleClose"
   >
     <template #header>
@@ -247,20 +282,27 @@ const handleClose = () => {
           <!-- Audio Message -->
           <div v-else-if="msg.type === 5">
             <div
-              class="audio-bubble p-3 rounded-xl shadow-sm flex items-center gap-2 cursor-pointer transition-colors"
-              :class="
+              :class="[
+                'audio-bubble p-3 rounded-xl shadow-sm flex items-center gap-3 cursor-pointer transition-all active:scale-95',
                 msg.side === 'left'
                   ? 'bg-white text-gray-800'
                   : 'bg-blue-500 text-white'
-              "
-              @click="playAudio(msg.content.audioUrl)"
+              ]"
+              @click="playAudio(msg)"
             >
+              <div v-if="playingMsgId === msg.id" class="voice-waves">
+                <div class="wave-bar" />
+                <div class="wave-bar" />
+                <div class="wave-bar" />
+              </div>
               <component
+                v-else
                 :is="useRenderIcon('ri:volume-up-fill')"
                 class="text-xl"
               />
               <span class="text-xs font-bold">{{ msg.content.duration }}s</span>
             </div>
+
           </div>
 
           <span class="text-[10px] text-gray-300 mt-2">{{ msg.time }}</span>
@@ -319,5 +361,39 @@ const handleClose = () => {
       border-radius: 10px;
     }
   }
+
+  .voice-waves {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+    padding-right: 4px;
+    .wave-bar {
+      width: 3px;
+      height: 100%;
+      background: currentColor;
+      border-radius: 1px;
+      animation: wave-breath 0.8s ease-in-out infinite;
+      &:nth-child(2) {
+        animation-delay: 0.15s;
+        height: 70%;
+      }
+      &:nth-child(3) {
+        animation-delay: 0.3s;
+        height: 50%;
+      }
+    }
+  }
+
+  @keyframes wave-breath {
+    0%,
+    100% {
+      height: 6px;
+    }
+    50% {
+      height: 18px;
+    }
+  }
 }
+
 </style>

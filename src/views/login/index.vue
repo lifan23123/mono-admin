@@ -32,8 +32,8 @@ const { overallStyle, dataThemeChange } = useDataThemeChange();
 dataThemeChange(overallStyle.value);
 
 const ruleForm = reactive({
-  username: "admin",
-  password: "111111"
+  username: "",
+  password: ""
 });
 
 const onLogin = async (formEl: FormInstance | undefined) => {

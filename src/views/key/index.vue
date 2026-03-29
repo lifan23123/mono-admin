@@ -10,8 +10,13 @@ defineOptions({
 const configForm = reactive({
   appKey: "",
   appSecret: "",
-  masterKey: ""
+  masterKey: "",
+  qiniuAccessKey: "",
+  qiniuSecretKey: "",
+  qiniuDomain: "",
+  qiniuBucket: ""
 });
+
 
 const configId = ref<number | null>(null);
 
@@ -31,7 +36,12 @@ const fetchConfig = async () => {
       configForm.appKey = dm.appKey || "";
       configForm.appSecret = dm.appSerect || ""; // 映射 appSerect
       configForm.masterKey = dm.pwd || ""; // 映射 pwd
+      configForm.qiniuAccessKey = dm.qiniuAccessKey || "";
+      configForm.qiniuSecretKey = dm.qiniuSecretKey || "";
+      configForm.qiniuDomain = dm.qiniuDomain || "";
+      configForm.qiniuBucket = dm.qiniuBucket || "";
     }
+
   } catch (error) {
     console.error("Fetch key config failed:", error);
   }
@@ -49,8 +59,13 @@ const handleSave = async () => {
       data: JSON.stringify({
         appKey: configForm.appKey,
         appSerect: configForm.appSecret,
-        pwd: configForm.masterKey
+        pwd: configForm.masterKey,
+        qiniuAccessKey: configForm.qiniuAccessKey,
+        qiniuSecretKey: configForm.qiniuSecretKey,
+        qiniuDomain: configForm.qiniuDomain,
+        qiniuBucket: configForm.qiniuBucket
       })
+
     });
     if ((res as any).code === "0000") {
       message("配置保存成功", { type: "success" });
@@ -67,7 +82,12 @@ const handleReset = () => {
   configForm.appKey = "";
   configForm.appSecret = "";
   configForm.masterKey = "";
+  configForm.qiniuAccessKey = "";
+  configForm.qiniuSecretKey = "";
+  configForm.qiniuDomain = "";
+  configForm.qiniuBucket = "";
 };
+
 </script>
 
 <template>
@@ -117,6 +137,57 @@ const handleReset = () => {
           </el-col>
         </el-row>
 
+        <div class="card-header mt-8 mb-8">
+          <h2 class="text-base font-bold text-gray-800">七牛云配置</h2>
+        </div>
+
+        <el-row :gutter="32">
+          <!-- qiniuAccessKey -->
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="七牛云key">
+              <el-input
+                v-model="configForm.qiniuAccessKey"
+                placeholder="请输入 qiniuAccessKey"
+                class="custom-input"
+              />
+            </el-form-item>
+          </el-col>
+
+          <!-- qiniuSecretKey -->
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="七牛云secret">
+              <el-input
+                v-model="configForm.qiniuSecretKey"
+                placeholder="请输入 qiniuSecretKey"
+                class="custom-input"
+              />
+            </el-form-item>
+          </el-col>
+
+          <!-- qiniuDomain -->
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="七牛云域名">
+              <el-input
+                v-model="configForm.qiniuDomain"
+                placeholder="请输入 qiniuDomain"
+                class="custom-input"
+              />
+            </el-form-item>
+          </el-col>
+
+          <!-- qiniuBucket -->
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="七牛云空间">
+              <el-input
+                v-model="configForm.qiniuBucket"
+                placeholder="请输入 qiniuBucket"
+                class="custom-input"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+
         <!-- Form Actions -->
         <div class="form-actions mt-12 flex justify-end gap-4">
           <el-button class="reset-btn" @click="handleReset"
@@ -152,7 +223,17 @@ const handleReset = () => {
       display: flex;
       flex-direction: column;
       padding: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+      &::-webkit-scrollbar-thumb {
+        background: #e5e7eb;
+        border-radius: 10px;
+      }
     }
+
 
     .card-header {
       border-bottom: none;

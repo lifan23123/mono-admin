@@ -17,6 +17,10 @@ import { message } from "@/utils/message";
 
 // 相关配置请参考：www.axios-js.com/zh-cn/docs/#axios-request-config-1
 const defaultConfig: AxiosRequestConfig = {
+  // 根据环境变量设置基地址
+  // 开发环境：/api（经 vite proxy 代理并去掉 /api 前缀转发到后端）
+  // 生产环境：http://43.136.61.162:7704（直接请求后端）
+  baseURL: import.meta.env.VITE_API_BASE_URL || "",
   // 请求超时时间
   timeout: 20000,
   headers: {
@@ -50,7 +54,7 @@ function handleHttpError(error: PureHttpError): void {
   if (error.isCancelRequest) return;
 
   const status = error.response?.status;
-  const errorMsg = error.response?.data?.message || error.message;
+  const errorMsg = (error.response?.data as any)?.message || error.message;
 
   // 执行状态码对应的处理器
   if (status && errorHandlers[status]) {
@@ -149,17 +153,34 @@ class PureHttp {
         // 如果数据是字符串且不是由 transformResponse 处理过的（或者哪怕处理过仍是加密串）
         // 统一在拦截器处理解密
         if (typeof data === "string" && data.length > 0) {
-          try {
-            const decrypted = await decrypt(data);
-            data = JSON.parse(decrypted);
-            console.log("解密后的数据:", data);
-            if (data.code !== "0000") {
-              message(data.message, { type: "error" });
-              return Promise.reject(data);
+          // 先去除首尾空白和可能的引号
+          const trimmedData = data.trim().replace(/^["']|["']$/g, "");
+          // 预检测是否可能是 Base64 加密串：Base64 字符集且不是 JSON 格式
+          const isBase64 = /^[A-Za-z0-9+/=]+$/.test(trimmedData);
+          const isJson = trimmedData.startsWith("{") || trimmedData.startsWith("[");
+
+          if (isBase64 && !isJson && trimmedData.length > 20) {
+            try {
+              const decrypted = await decrypt(data);
+              data = JSON.parse(decrypted);
+              console.log("解密后的数据:", data);
+            } catch (e) {
+              // 如果尝试解密或解析失败，说明可能不是加密串，保持原样
+              console.debug("Decryption attempted but failed, keeping original data", e);
             }
-          } catch (e) {
-            // 如果尝试解密或解析失败，说明可能不是加密串，保持原样
-            console.warn("Global decryption failed, using original data", e);
+          } else if (isJson) {
+            // 如果本来就是 JSON 字符串但未被 axios 解析，则在此手动解析
+            try {
+              data = JSON.parse(data);
+            } catch (e) {}
+          }
+        }
+
+        // 统一处理响应码
+        if (data && typeof data === "object") {
+          const resData = data as any;
+          if (resData.code && resData.code !== "0000") {
+            message(resData.message || resData.msg || "请求失败", { type: "error" });
           }
         }
 

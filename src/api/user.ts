@@ -2,7 +2,7 @@ import { http } from "@/utils/http";
 
 /** 登录 */
 export const getLogin = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imsusermanager/login", {
+  return http.request<any>("post", "/imchat/imsusermanager/login", {
     data,
     responseType: "text"
   });
@@ -10,7 +10,7 @@ export const getLogin = (data?: object) => {
 
 /** 平台数据统计 */
 export const getPlatformDataStatistics = (data?: object) => {
-  return http.request<any>("get", "/api/imchat/data/total", {
+  return http.request<any>("get", "/imchat/data/total", {
     data,
     responseType: "text"
   });
@@ -18,7 +18,7 @@ export const getPlatformDataStatistics = (data?: object) => {
 
 /** 子账号列表 */
 export const getSubAccountList = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imcompany/list", {
+  return http.request<any>("post", "/imchat/imcompany/list", {
     data,
     responseType: "text"
   });
@@ -26,7 +26,7 @@ export const getSubAccountList = (data?: object) => {
 
 /** 子账号创建 */
 export const getSubAccountCreate = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imcompany/create", {
+  return http.request<any>("post", "/imchat/imcompany/create", {
     data,
     responseType: "text"
   });
@@ -34,7 +34,7 @@ export const getSubAccountCreate = (data?: object) => {
 
 /** 子账号更新 */
 export const getSubAccountUpdate = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imcompany/update", {
+  return http.request<any>("post", "/imchat/imcompany/update", {
     data,
     responseType: "text"
   });
@@ -42,7 +42,7 @@ export const getSubAccountUpdate = (data?: object) => {
 
 /** 子账号删除 */
 export const getSubAccountDelete = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imcompany/del", {
+  return http.request<any>("post", "/imchat/imcompany/del", {
     data,
     responseType: "text"
   });
@@ -50,7 +50,7 @@ export const getSubAccountDelete = (data?: object) => {
 
 /** 用户列表 */
 export const getUserList = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imsuser/list", {
+  return http.request<any>("post", "/imchat/imsuser/list", {
     data,
     responseType: "text"
   });
@@ -58,7 +58,7 @@ export const getUserList = (data?: object) => {
 
 /** 用户更新 */
 export const getUserUpdate = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imsuser/update", {
+  return http.request<any>("post", "/imchat/imsuser/update", {
     data,
     responseType: "text"
   });
@@ -66,7 +66,7 @@ export const getUserUpdate = (data?: object) => {
 
 /** 群管理-发现管理列表 */
 export const getGroupDiscoveryList = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imfaxian/list", {
+  return http.request<any>("post", "/imchat/imfaxian/list", {
     data,
     responseType: "text"
   });
@@ -74,7 +74,7 @@ export const getGroupDiscoveryList = (data?: object) => {
 
 /** 群管理-发现管理新增 */
 export const getGroupDiscoveryAdd = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imfaxian/create", {
+  return http.request<any>("post", "/imchat/imfaxian/create", {
     data,
     responseType: "text"
   });
@@ -82,7 +82,7 @@ export const getGroupDiscoveryAdd = (data?: object) => {
 
 /** 群管理-发现管理更新 */
 export const getGroupDiscoveryUpdate = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imfaxian/update", {
+  return http.request<any>("post", "/imchat/imfaxian/update", {
     data,
     responseType: "text"
   });
@@ -90,7 +90,7 @@ export const getGroupDiscoveryUpdate = (data?: object) => {
 
 /** 群管理-发现管理删除 */
 export const getGroupDiscoveryDelete = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imfaxian/del", {
+  return http.request<any>("post", "/imchat/imfaxian/del", {
     data,
     responseType: "text"
   });
@@ -98,7 +98,7 @@ export const getGroupDiscoveryDelete = (data?: object) => {
 
 /** 聊天列表 */
 export const getChatList = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imchatmanager/list", {
+  return http.request<any>("post", "/imchat/imchatmanager/list", {
     data,
     responseType: "text"
   });
@@ -106,7 +106,7 @@ export const getChatList = (data?: object) => {
 
 /** 聊天记录详情 */
 export const getChatRecord = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/immessage/all/list", {
+  return http.request<any>("post", "/imchat/immessage/all/list", {
     data,
     responseType: "text"
   });
@@ -114,7 +114,15 @@ export const getChatRecord = (data?: object) => {
 
 /** 后台用户管理 */
 export const getBackstageUserList = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imsusermanager/list", {
+  return http.request<any>("post", "/imchat/imsusermanager/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 后台用户更新 */
+export const getBackstageUserUpdate = (data?: object) => {
+  return http.request<any>("post", "/imchat/imsusermanager/update", {
     data,
     responseType: "text"
   });
@@ -122,7 +130,7 @@ export const getBackstageUserList = (data?: object) => {
 
 /** 后台登录日志 */
 export const getBackstageLoginLogList = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imloginlog/list", {
+  return http.request<any>("post", "/imchat/imloginlog/list", {
     data,
     responseType: "text"
   });
@@ -130,7 +138,7 @@ export const getBackstageLoginLogList = (data?: object) => {
 
 /** 域名推送 */
 export const pushAllHost = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imsuser/pushAllHost", {
+  return http.request<any>("post", "/imchat/imsuser/pushAllHost", {
     data,
     responseType: "text"
   });
@@ -138,7 +146,7 @@ export const pushAllHost = (data?: object) => {
 
 /** 获取七牛域名 */
 export const getQiNiuDomain = (data?: object) => {
-  return http.request<any>("get", "/api/imchat/immessage/image/token", {
+  return http.request<any>("get", "/imchat/immessage/image/token", {
     data,
     responseType: "text"
   });
@@ -146,7 +154,7 @@ export const getQiNiuDomain = (data?: object) => {
 
 /** 群管理更新 */
 export const getChatUpdate = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imchatmanager/update", {
+  return http.request<any>("post", "/imchat/imchatmanager/update", {
     data,
     responseType: "text"
   });
@@ -154,7 +162,7 @@ export const getChatUpdate = (data?: object) => {
 
 /** 配置保存 */
 export const getConfigUpdate = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imconfig/create", {
+  return http.request<any>("post", "/imchat/imconfig/create", {
     data,
     responseType: "text"
   });
@@ -162,7 +170,7 @@ export const getConfigUpdate = (data?: object) => {
 
 /** 配置详情 */
 export const getConfigDetail = (data?: object) => {
-  return http.request<any>("post", "/api/imchat/imconfig/detail", {
+  return http.request<any>("post", "/imchat/imconfig/detail", {
     data,
     responseType: "text"
   });

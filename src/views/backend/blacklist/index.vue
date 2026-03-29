@@ -16,8 +16,9 @@ const tableData = ref([]);
 const loading = ref(false);
 const configId = ref<number | null>(null);
 
-// Dialog visibility state
+// Dialog visibility and state
 const addDialogVisible = ref(false);
+const isEdit = ref(false);
 
 // Form Data
 const addForm = reactive({
@@ -32,14 +33,25 @@ const fetchBlacklist = async () => {
     const { data, code } = res as any;
     if (code === "0000" && data) {
       configId.value = data.id;
-      // 假设黑名单存储在 value 字段，且为 JSON 数组字符串
-      // 如果接口直接返回列表，则直接赋值
-      try {
-        const parsedValue = JSON.parse(data.value || "[]");
-        tableData.value = Array.isArray(parsedValue) ? parsedValue : [];
-      } catch (e) {
-        // 如果不是 JSON，尝试逗号分隔或处理为单条
-        tableData.value = data.value ? [{ id: Date.now(), ip: data.value, remark: data.remark || "" }] : [];
+      if (data.data) {
+        try {
+          const parsedData = JSON.parse(data.data);
+          if (parsedData.ip) {
+            tableData.value = [
+              {
+                ip: parsedData.ip,
+                remark: parsedData.remark || ""
+              }
+            ];
+          } else {
+            tableData.value = [];
+          }
+        } catch (e) {
+          console.error("Parse data error", e);
+          tableData.value = [];
+        }
+      } else {
+        tableData.value = [];
       }
       total.value = tableData.value.length;
     }
@@ -63,8 +75,16 @@ const handleCurrentChange = (val: number) => {
 };
 
 const openAddDialog = () => {
+  isEdit.value = false;
   addForm.ip = "";
   addForm.remark = "";
+  addDialogVisible.value = true;
+};
+
+const openEditDialog = (row: any) => {
+  isEdit.value = true;
+  addForm.ip = row.ip;
+  addForm.remark = row.remark;
   addDialogVisible.value = true;
 };
 
@@ -74,21 +94,21 @@ const submitAdd = async () => {
     return;
   }
 
-  const newList = [...tableData.value, { id: Date.now(), ...addForm }];
   try {
     const res = await getConfigUpdate({
-      id: configId.value,
       ident: "blackIp",
-      name: "IP黑名单",
-      value: JSON.stringify(newList)
+      dataMap: {
+        ip: addForm.ip,
+        remark: addForm.remark
+      }
     });
     if ((res as any).code === "0000") {
-      message("添加成功", { type: "success" });
+      message(isEdit.value ? "更新成功" : "添加成功", { type: "success" });
       addDialogVisible.value = false;
       fetchBlacklist();
     }
   } catch (e) {
-    message("添加失败", { type: "error" });
+    message(isEdit.value ? "更新失败" : "添加失败", { type: "error" });
   }
 };
 
@@ -98,13 +118,12 @@ const handleDelete = (row: any) => {
     cancelButtonText: "取消",
     type: "warning"
   }).then(async () => {
-    const newList = tableData.value.filter(item => item.ip !== row.ip);
     try {
       const res = await getConfigUpdate({
-        id: configId.value,
         ident: "blackIp",
-        name: "IP黑名单",
-        value: JSON.stringify(newList)
+        dataMap: {
+          ip: ""
+        }
       });
       if ((res as any).code === "0000") {
         message("删除成功", { type: "success" });
@@ -135,12 +154,14 @@ const handleDelete = (row: any) => {
         class="custom-table flex-1"
         height="100%"
       >
-        <el-table-column prop="id" label="序号" width="100" align="center" />
         <el-table-column prop="ip" label="IP地址" min-width="150" align="center" />
         <el-table-column prop="remark" label="备注" min-width="200" align="center" />
-        <el-table-column label="操作" width="120" align="center">
+        <el-table-column label="操作" width="180" align="center">
           <template #default="scope">
-            <el-button link type="danger" class="op-link" @click="handleDelete(scope.row)">
+            <el-button link type="primary" class="op-link-edit" @click="openEditDialog(scope.row)">
+              编辑
+            </el-button>
+            <el-button link type="danger" class="op-link ml-4" @click="handleDelete(scope.row)">
               删除
             </el-button>
           </template>
@@ -168,25 +189,32 @@ const handleDelete = (row: any) => {
     <!-- Add IP Dialog -->
     <el-dialog
       v-model="addDialogVisible"
-      title="新增"
+      :title="isEdit ? '编辑' : '新增'"
       width="440px"
       align-center
       class="custom-dialog"
+      append-to-body
     >
       <el-form label-position="top">
-        <el-form-item label="绑定IP">
+        <el-form-item label="IP" required>
           <el-input 
             v-model="addForm.ip" 
             type="textarea"
             :rows="6"
-            placeholder="请输入绑定IP，多个IP逗号分隔 例如:127.0.0.1,127.0.0.1,127.0.0.1" 
+            placeholder="请输入IP" 
+          />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input 
+            v-model="addForm.remark" 
+            placeholder="请输入备注" 
           />
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="addDialogVisible = false" class="cancel-btn">取消</el-button>
-          <el-button type="primary" @click="addDialogVisible = false" class="submit-btn ml-4">保存</el-button>
+          <el-button type="primary" @click="submitAdd" class="submit-btn ml-4">保存</el-button>
         </div>
       </template>
     </el-dialog>
@@ -247,6 +275,12 @@ const handleDelete = (row: any) => {
       color: #ef4444;
       padding: 0;
     }
+
+    .op-link-edit {
+      font-weight: 500;
+      color: #0076fe;
+      padding: 0;
+    }
   }
 
   .pagination-wrapper {
@@ -276,69 +310,5 @@ const handleDelete = (row: any) => {
   }
 }
 
-/* Dialog Styles */
-:deep(.custom-dialog) {
-  border-radius: 20px;
-  overflow: hidden;
-  
-  .el-dialog__header {
-    margin-right: 0;
-    padding: 24px 24px 12px;
-    .el-dialog__title {
-      font-weight: bold;
-      font-size: 18px;
-    }
-  }
-  
-  .el-dialog__body {
-    padding: 12px 24px 24px;
-  }
-  
-  .el-form-item__label {
-    color: #333;
-    font-weight: 500;
-    padding-bottom: 8px;
-  }
-  
-  .el-input__wrapper, .el-textarea__inner {
-    background-color: #f7f8fa;
-    box-shadow: none;
-    border-radius: 8px;
-    border: none;
-  }
-
-  .el-input__wrapper {
-    height: 48px;
-  }
-
-  .el-textarea__inner {
-    padding: 12px;
-    resize: none;
-  }
-
-  .dialog-footer {
-    display: flex;
-    justify-content: center;
-    padding: 0 0 10px;
-    
-    .el-button {
-      height: 44px;
-      border-radius: 8px;
-      padding: 0 45px;
-    }
-    
-    .cancel-btn {
-      border: 1px solid #dcdfe6;
-      color: #606266;
-    }
-    
-    .submit-btn {
-      background-color: #0076fe;
-      border: none;
-      &:hover {
-        background-color: #3391ff;
-      }
-    }
-  }
-}
 </style>
+

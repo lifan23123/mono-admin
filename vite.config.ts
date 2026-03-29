@@ -44,6 +44,8 @@ export default ({ mode }: ConfigEnv): UserConfigExport => {
     },
     build: {
       // https://cn.vitejs.dev/guide/build.html#browser-compatibility
+      outDir: 'dist',
+      assetsDir: 'assets',
       target: "es2015",
       sourcemap: false,
       // 消除打包大小超过500kb警告
@@ -54,9 +56,9 @@ export default ({ mode }: ConfigEnv): UserConfigExport => {
         },
         // 静态资源分类打包
         output: {
-          chunkFileNames: "static/js/[name]-[hash].js",
-          entryFileNames: "static/js/[name]-[hash].js",
-          assetFileNames: "static/[ext]/[name]-[hash].[ext]"
+          chunkFileNames: "assets/js/[name]-[hash].js",
+          entryFileNames: "assets/js/[name]-[hash].js",
+          assetFileNames: "assets/[ext]/[name]-[hash].[ext]"
         }
       }
     },

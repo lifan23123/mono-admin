@@ -348,6 +348,7 @@ const handleStateChange = async (row: any) => {
       width="440px"
       align-center
       class="custom-dialog"
+      append-to-body
     >
       <el-form label-position="top" :model="addForm">
         <el-form-item label="账号">
@@ -385,6 +386,7 @@ const handleStateChange = async (row: any) => {
       width="440px"
       align-center
       class="custom-dialog"
+      append-to-body
     >
       <el-form label-position="top" :model="editForm">
         <el-form-item label="账号">
@@ -421,6 +423,7 @@ const handleStateChange = async (row: any) => {
       align-center
       class="custom-dialog delete-dialog"
       :show-close="false"
+      append-to-body
     >
       <div class="delete-content text-center py-4">
         <div class="warning-icon-wrapper mb-4">
@@ -585,63 +588,9 @@ const handleStateChange = async (row: any) => {
   }
 }
 
-/* Dialog Styles */
-:deep(.custom-dialog) {
-  border-radius: 20px;
-  overflow: hidden;
+</style>
 
-  .el-dialog__header {
-    margin-right: 0;
-    padding: 24px 24px 12px;
-    .el-dialog__title {
-      font-weight: bold;
-      font-size: 18px;
-    }
-  }
-
-  .el-dialog__body {
-    padding: 12px 24px 24px;
-  }
-
-  .el-form-item__label {
-    color: #333;
-    font-weight: 500;
-    padding-bottom: 8px;
-  }
-
-  .el-input__wrapper {
-    background-color: #f7f8fa;
-    box-shadow: none;
-    border-radius: 8px;
-    height: 48px;
-  }
-
-  .dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    padding: 0 0 10px;
-
-    .el-button {
-      height: 44px;
-      border-radius: 8px;
-      padding: 0 32px;
-    }
-
-    .cancel-btn {
-      border: 1px solid #dcdfe6;
-      color: #606266;
-    }
-
-    .submit-btn {
-      background-color: #0076fe;
-      border: none;
-      &:hover {
-        background-color: #3391ff;
-      }
-    }
-  }
-}
-
+<style lang="scss">
 .delete-dialog {
   .delete-content {
     .warning-icon-wrapper {
@@ -651,7 +600,7 @@ const handleStateChange = async (row: any) => {
     }
   }
 
-  :deep(.el-dialog__footer) {
+  .el-dialog__footer {
     .dialog-footer {
       justify-content: center !important;
     }
