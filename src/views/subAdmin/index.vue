@@ -100,7 +100,7 @@ const openAddDialog = () => {
 };
 
 const openEditDialog = (row: any) => {
-  editForm.id = row.id;
+  editForm.id = row.imsUserManagerResp.id;
   editForm.account = row.imsUserManagerResp.loginName;
   editForm.newPassword = "";
   editForm.remark = row.name;
@@ -192,7 +192,7 @@ const submitDelete = async () => {
 const handleStateChange = async (row: any) => {
   try {
     const params: any = {
-      id: row.id,
+      id: row.imsUserManagerResp.id,
       state: row.state == 1 ? 2 : 1
     };
     const res = await getSubAccountUpdate(params);

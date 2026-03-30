@@ -10,7 +10,6 @@ defineOptions({
 const configForm = reactive({
   appKey: "",
   appSecret: "",
-  masterKey: "",
   qiniuAccessKey: "",
   qiniuSecretKey: "",
   qiniuDomain: "",
@@ -35,7 +34,6 @@ const fetchConfig = async () => {
       }
       configForm.appKey = dm.appKey || "";
       configForm.appSecret = dm.appSerect || ""; // 映射 appSerect
-      configForm.masterKey = dm.pwd || ""; // 映射 pwd
       configForm.qiniuAccessKey = dm.qiniuAccessKey || "";
       configForm.qiniuSecretKey = dm.qiniuSecretKey || "";
       configForm.qiniuDomain = dm.qiniuDomain || "";
@@ -59,7 +57,6 @@ const handleSave = async () => {
       data: JSON.stringify({
         appKey: configForm.appKey,
         appSerect: configForm.appSecret,
-        pwd: configForm.masterKey,
         qiniuAccessKey: configForm.qiniuAccessKey,
         qiniuSecretKey: configForm.qiniuSecretKey,
         qiniuDomain: configForm.qiniuDomain,
@@ -81,7 +78,6 @@ const handleSave = async () => {
 const handleReset = () => {
   configForm.appKey = "";
   configForm.appSecret = "";
-  configForm.masterKey = "";
   configForm.qiniuAccessKey = "";
   configForm.qiniuSecretKey = "";
   configForm.qiniuDomain = "";
@@ -104,7 +100,7 @@ const handleReset = () => {
       >
         <el-row :gutter="32">
           <!-- IM App Key -->
-          <el-col :xs="24" :sm="8">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="IM App Key">
               <el-input
                 v-model="configForm.appKey"
@@ -115,22 +111,11 @@ const handleReset = () => {
           </el-col>
 
           <!-- IM App Secret -->
-          <el-col :xs="24" :sm="8">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="IM App Secret">
               <el-input
                 v-model="configForm.appSecret"
                 placeholder="请输入 App Secret/秘钥"
-                class="custom-input"
-              />
-            </el-form-item>
-          </el-col>
-
-          <!-- Communication Master Key -->
-          <el-col :xs="24" :sm="8">
-            <el-form-item label="通讯主秘钥">
-              <el-input
-                v-model="configForm.masterKey"
-                placeholder="选填，主秘钥或 Token"
                 class="custom-input"
               />
             </el-form-item>

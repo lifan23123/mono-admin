@@ -36,7 +36,16 @@ export default {
       component: () => import("@/views/backend/blacklist/index.vue"),
       meta: {
         title: "IP黑名单",
-        roles: ["common"]
+        roles: ["admin", "common"]
+      }
+    },
+    {
+      path: "/backend/whitelist",
+      name: "BackendWhitelist",
+      component: () => import("@/views/backend/whitelist/index.vue"),
+      meta: {
+        title: "IP白名单",
+        roles: ["admin", "common"]
       }
     }
   ]

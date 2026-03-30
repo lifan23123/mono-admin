@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import { getUserList, getUserUpdate } from "@/api/user";
+import { getUserList, getUserUpdate, getQiNiuDomain } from "@/api/user";
 import { message } from "@/utils/message";
 import { type FormInstance, ElMessageBox } from "element-plus";
 import UserIcon from "~icons/ep/user";
@@ -19,23 +19,40 @@ const total = ref(120);
 
 const tableData = ref([]);
 const loading = ref(false);
+const qiniuDomain = ref("");
+
+const fetchQiNiuDomain = async () => {
+  try {
+    const res = await getQiNiuDomain();
+    const { data } = res as any;
+    if (data) qiniuDomain.value = data;
+  } catch (e) {}
+};
+
+const getUrl = (path: string) => {
+  if (!path || path.startsWith("http")) return path || "";
+  let domainBase = "";
+  if (typeof qiniuDomain.value === "string") {
+    domainBase = qiniuDomain.value;
+  } else if (qiniuDomain.value && typeof qiniuDomain.value === "object") {
+    domainBase = (qiniuDomain.value as any).url || "";
+  }
+  const domain = domainBase.replace(/\/$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return domain + cleanPath;
+};
 
 const fetchUserList = async () => {
   loading.value = true;
   try {
-    const { data } = await getUserList({
+    const { data, total: totalCount } = await getUserList({
       pageNo: currentPage.value,
       pageSize: pageSize.value,
       searchKey: searchQuery.value
     });
     if (data) {
-      if (Array.isArray(data)) {
-        tableData.value = data;
-        total.value = data.length;
-      } else if (data.list) {
-        tableData.value = data.list;
-        total.value = data.total || 0;
-      }
+      tableData.value = data;
+      total.value = totalCount;
     }
   } catch (error) {
     console.error("Failed to fetch user list:", error);
@@ -46,6 +63,7 @@ const fetchUserList = async () => {
 
 onMounted(() => {
   fetchUserList();
+  fetchQiNiuDomain();
 });
 
 const handleSizeChange = (val: number) => {
@@ -221,7 +239,7 @@ const handleToggleTequan = (row: any) => {
             <div class="flex items-center">
               <el-image
                 v-if="scope.row.icon"
-                :src="scope.row.icon"
+                :src="getUrl(scope.row.icon)"
                 class="avatar-wrapper mr-3"
                 fit="cover"
               >

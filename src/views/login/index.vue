@@ -22,7 +22,6 @@ defineOptions({
 const router = useRouter();
 const loading = ref(false);
 const disabled = ref(false);
-const agreed = ref(false);
 const ruleFormRef = ref<FormInstance>();
 
 const { initStorage } = useLayout();
@@ -38,10 +37,6 @@ const ruleForm = reactive({
 
 const onLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
-  if (!agreed.value) {
-    message("请先同意用户协议和隐私协议", { type: "warning" });
-    return;
-  }
   await formEl.validate(valid => {
     if (valid) {
       loading.value = true;
@@ -147,17 +142,6 @@ useEventListener(document, "keydown", ({ code }) => {
             </el-button>
           </el-form-item>
         </el-form>
-
-        <div class="login-agreement">
-          <el-checkbox v-model="agreed" class="agreement-checkbox">
-            我已阅读且同意
-            <a href="javascript:void(0)" class="agreement-link">用户协议</a>和<a
-              href="javascript:void(0)"
-              class="agreement-link"
-              >隐私协议</a
-            >
-          </el-checkbox>
-        </div>
       </div>
     </div>
   </div>
@@ -293,29 +277,6 @@ useEventListener(document, "keydown", ({ code }) => {
 
   &:active {
     transform: translateY(0);
-  }
-}
-
-/* 用户协议 */
-.login-agreement {
-  margin-top: 24px;
-  text-align: center;
-
-  .agreement-checkbox {
-    :deep(.el-checkbox__label) {
-      font-size: 13px;
-      color: #999;
-    }
-  }
-
-  .agreement-link {
-    color: #2b7fff;
-    text-decoration: none;
-    font-weight: 500;
-
-    &:hover {
-      text-decoration: underline;
-    }
   }
 }
 
