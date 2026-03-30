@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
-import { getUserList, getUserUpdate, getQiNiuDomain } from "@/api/user";
+import {
+  getUserList,
+  getUserUpdate,
+  getQiNiuDomain,
+  getSubAccountList
+} from "@/api/user";
 import { message } from "@/utils/message";
 import { type FormInstance, ElMessageBox } from "element-plus";
 import UserIcon from "~icons/ep/user";
@@ -19,6 +24,58 @@ const total = ref(120);
 
 const tableData = ref([]);
 const loading = ref(false);
+
+// 公司子账号筛选
+const companyId = ref("");
+const companyOptions = ref<{ label: string; value: string }[]>([]);
+const companyLoading = ref(false);
+
+const fetchCompanyOptions = async (query = "") => {
+  companyLoading.value = true;
+  try {
+    const { data } = await getSubAccountList({
+      pageNo: 1,
+      pageSize: 50,
+      type: 2,
+      loginName: query
+    });
+    let list = [];
+    if (data) {
+      list = Array.isArray(data) ? data : data.list || [];
+    }
+    // 去重：同一个 companyId 只保留第一个
+    const seen = new Set<string>();
+    companyOptions.value = list
+      .filter((item: any) => {
+        const resp = item.imsUserManagerResp;
+        if (!resp || !resp.companyId) return false;
+        if (seen.has(String(resp.companyId))) return false;
+        seen.add(String(resp.companyId));
+        return true;
+      })
+      .map((item: any) => ({
+        label: item.imsUserManagerResp.loginName || "未命名",
+        value: String(item.imsUserManagerResp.companyId)
+      }));
+    // 如果当前没有选中值，默认取第一个
+    if (!companyId.value && companyOptions.value.length > 0) {
+      companyId.value = companyOptions.value[0].value;
+    }
+  } catch (error) {
+    console.error("Failed to fetch company options:", error);
+  } finally {
+    companyLoading.value = false;
+  }
+};
+
+const handleCompanyRemoteSearch = (query: string) => {
+  fetchCompanyOptions(query);
+};
+
+const handleCompanyChange = () => {
+  currentPage.value = 1;
+  fetchUserList();
+};
 const qiniuDomain = ref("");
 
 const fetchQiNiuDomain = async () => {
@@ -48,7 +105,8 @@ const fetchUserList = async () => {
     const { data, total: totalCount } = await getUserList({
       pageNo: currentPage.value,
       pageSize: pageSize.value,
-      searchKey: searchQuery.value
+      searchKey: searchQuery.value,
+      companyId: companyId.value
     });
     if (data) {
       tableData.value = data;
@@ -61,7 +119,9 @@ const fetchUserList = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  // 先加载公司选项，拿到默认 companyId 后再加载用户列表
+  await fetchCompanyOptions();
   fetchUserList();
   fetchQiNiuDomain();
 });
@@ -206,7 +266,26 @@ const handleToggleTequan = (row: any) => {
     <el-card shadow="never" class="main-card border-none border-radius-16">
       <!-- Search Filter Area -->
       <div class="filter-wrapper mb-6">
-        <div class="flex items-center">
+        <div class="flex items-center flex-wrap">
+          <span class="mr-4 text-sm text-gray-600">公司子账号</span>
+          <el-select
+            v-model="companyId"
+            class="company-select mr-6"
+            filterable
+            remote
+            :remote-method="handleCompanyRemoteSearch"
+            :loading="companyLoading"
+            :clearable="false"
+            placeholder="请选择公司"
+            @change="handleCompanyChange"
+          >
+            <el-option
+              v-for="item in companyOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
           <span class="mr-4 text-sm text-gray-600">用户</span>
           <el-input
             v-model="searchQuery"
@@ -456,6 +535,17 @@ const handleToggleTequan = (row: any) => {
 
     .filter-wrapper {
       flex-shrink: 0;
+
+      .company-select {
+        width: 200px;
+        :deep(.el-input__wrapper) {
+          background-color: #f7f8fa;
+          box-shadow: none;
+          border-radius: 8px;
+          height: 40px;
+        }
+      }
+
       .search-input {
         width: 280px;
         :deep(.el-input__wrapper) {
