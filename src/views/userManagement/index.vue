@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, computed } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import {
   getUserList,
@@ -12,6 +12,9 @@ import { type FormInstance, ElMessageBox } from "element-plus";
 import UserIcon from "~icons/ep/user";
 import MessageIcon from "~icons/ep/message";
 import PhoneIcon from "~icons/ep/iphone";
+import { useUserStoreHook } from "@/store/modules/user";
+
+
 
 defineOptions({
   name: "UserManagement"
@@ -22,7 +25,11 @@ const currentPage = ref(1);
 const pageSize = ref(20);
 const total = ref(120);
 
+/** 是否是普通角色 */
+const isCommonRole = computed(() => useUserStoreHook().roles.includes("common"));
+
 const tableData = ref([]);
+
 const loading = ref(false);
 
 // 公司子账号筛选
@@ -121,10 +128,13 @@ const fetchUserList = async () => {
 
 onMounted(async () => {
   // 先加载公司选项，拿到默认 companyId 后再加载用户列表
-  await fetchCompanyOptions();
+  if (!isCommonRole.value) {
+    await fetchCompanyOptions();
+  }
   fetchUserList();
   fetchQiNiuDomain();
 });
+
 
 const handleSizeChange = (val: number) => {
   pageSize.value = val;
@@ -267,26 +277,29 @@ const handleToggleTequan = (row: any) => {
       <!-- Search Filter Area -->
       <div class="filter-wrapper mb-6">
         <div class="flex items-center flex-wrap">
-          <span class="mr-4 text-sm text-gray-600">公司子账号</span>
-          <el-select
-            v-model="companyId"
-            class="company-select mr-6"
-            filterable
-            remote
-            :remote-method="handleCompanyRemoteSearch"
-            :loading="companyLoading"
-            :clearable="false"
-            placeholder="请选择公司"
-            @change="handleCompanyChange"
-          >
-            <el-option
-              v-for="item in companyOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
+          <template v-if="!isCommonRole">
+            <span class="mr-4 text-sm text-gray-600">公司子账号</span>
+            <el-select
+              v-model="companyId"
+              class="company-select mr-6"
+              filterable
+              remote
+              :remote-method="handleCompanyRemoteSearch"
+              :loading="companyLoading"
+              :clearable="false"
+              placeholder="请选择公司"
+              @change="handleCompanyChange"
+            >
+              <el-option
+                v-for="item in companyOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </template>
           <span class="mr-4 text-sm text-gray-600">用户</span>
+
           <el-input
             v-model="searchQuery"
             placeholder="昵称/账号/ID"
@@ -345,11 +358,24 @@ const handleToggleTequan = (row: any) => {
           </template>
         </el-table-column>
 
-        <el-table-column label="账号/邮箱/手机号" min-width="220">
+        <el-table-column label="账号/邮箱/手机号" min-width="180">
           <template #default="scope">
             <div class="flex items-center text-gray-500">
               <component :is="useRenderIcon(UserIcon)" class="mr-2 text-base" />
               <span>{{ scope.row.loginName || scope.row.account }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="!isCommonRole"
+          label="所属公司"
+          min-width="120"
+        >
+          <template #default="scope">
+            <div class="flex items-center text-gray-500">
+              <span>{{
+                `${scope.row.companyName}(ID:${scope.row.companyId})`
+              }}</span>
             </div>
           </template>
         </el-table-column>

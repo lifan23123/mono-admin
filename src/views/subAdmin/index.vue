@@ -192,7 +192,7 @@ const submitDelete = async () => {
 const handleStateChange = async (row: any) => {
   try {
     const params: any = {
-      id: row.imsUserManagerResp.id,
+      id: row.id,
       state: row.state == 1 ? 2 : 1
     };
     const res = await getSubAccountUpdate(params);
@@ -587,7 +587,6 @@ const handleStateChange = async (row: any) => {
     flex-shrink: 0;
   }
 }
-
 </style>
 
 <style lang="scss">
