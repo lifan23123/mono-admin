@@ -19,7 +19,7 @@ import { message } from "@/utils/message";
 const defaultConfig: AxiosRequestConfig = {
   // 根据环境变量设置基地址
   // 开发环境：/api（经 vite proxy 代理并去掉 /api 前缀转发到后端）
-  // 生产环境：http://43.136.61.162:7704（直接请求后端）
+  // 生产环境：/api（读取当前域名 + /api 后缀）
   baseURL: import.meta.env.VITE_API_BASE_URL || "",
   // 请求超时时间
   timeout: 20000,
