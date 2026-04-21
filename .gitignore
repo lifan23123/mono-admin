@@ -13,8 +13,7 @@ npm-debug.log*
 .pnpm-debug.log
 tests/**/coverage/
 dist
-
-
+*.zip
 
 # Editor directories and files
 .idea

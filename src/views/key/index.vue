@@ -16,7 +16,6 @@ const configForm = reactive({
   qiniuBucket: ""
 });
 
-
 const configId = ref<number | null>(null);
 
 const fetchConfig = async () => {
@@ -39,7 +38,6 @@ const fetchConfig = async () => {
       configForm.qiniuDomain = dm.qiniuDomain || "";
       configForm.qiniuBucket = dm.qiniuBucket || "";
     }
-
   } catch (error) {
     console.error("Fetch key config failed:", error);
   }
@@ -54,15 +52,14 @@ const handleSave = async () => {
     // 根据返回格式，保存时也应将对象转为 JSON 字符串放入 data 字段
     const res = await getConfigUpdate({
       ident: "IMINFO",
-      data: JSON.stringify({
+      dataMap: {
         appKey: configForm.appKey,
         appSerect: configForm.appSecret,
         qiniuAccessKey: configForm.qiniuAccessKey,
         qiniuSecretKey: configForm.qiniuSecretKey,
         qiniuDomain: configForm.qiniuDomain,
         qiniuBucket: configForm.qiniuBucket
-      })
-
+      }
     });
     if ((res as any).code === "0000") {
       message("配置保存成功", { type: "success" });
@@ -83,7 +80,6 @@ const handleReset = () => {
   configForm.qiniuDomain = "";
   configForm.qiniuBucket = "";
 };
-
 </script>
 
 <template>
@@ -172,7 +168,6 @@ const handleReset = () => {
           </el-col>
         </el-row>
 
-
         <!-- Form Actions -->
         <div class="form-actions mt-12 flex justify-end gap-4">
           <el-button class="reset-btn" @click="handleReset"
@@ -218,7 +213,6 @@ const handleReset = () => {
         border-radius: 10px;
       }
     }
-
 
     .card-header {
       border-bottom: none;
