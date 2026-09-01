@@ -440,6 +440,14 @@ const handlePreview = async (row: any) => {
         />
 
         <el-table-column
+          prop="userName"
+          label="发送人"
+          min-width="140"
+          align="center"
+          show-overflow-tooltip
+        />
+
+        <el-table-column
           prop="visitCount"
           label="阅读量"
           min-width="100"
