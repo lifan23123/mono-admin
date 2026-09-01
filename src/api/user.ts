@@ -175,3 +175,51 @@ export const getConfigDetail = (data?: object) => {
     responseType: "text"
   });
 };
+
+/** 公告列表 */
+export const getAnnouncementList = (data?: object) => {
+  return http.request<any>("post", "/imchat/imgonggao/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 公告创建 */
+export const getAnnouncementCreate = (data?: object) => {
+  return http.request<any>("post", "/imchat/imgonggao/create", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 公告更新 */
+export const getAnnouncementUpdate = (data?: object) => {
+  return http.request<any>("post", "/imchat/imgonggao/update", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 公告删除 */
+export const getAnnouncementDelete = (data?: object) => {
+  return http.request<any>("post", "/imchat/imgonggao/del", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 公告详情 */
+export const getAnnouncementDetail = (data?: object) => {
+  return http.request<any>("post", "/imchat/imgonggao/detail", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 获取上传七牛token */
+export const getUploadToken = (data?: object) => {
+  return http.request<any>("get", "/imchat/immessage/image/token", {
+    data,
+    responseType: "text"
+  });
+};

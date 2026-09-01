@@ -26,7 +26,7 @@ export default ({ mode }: ConfigEnv): UserConfigExport => {
       // 本地跨域代理 https://cn.vitejs.dev/config/server-options.html#server-proxy
       proxy: {
         "/api": {
-          target: "http://43.136.61.162:7704",
+          target: "http://202.79.168.59:7704",
           changeOrigin: true,
           rewrite: path => path.replace(/^\/api/, "")
         }
@@ -44,8 +44,8 @@ export default ({ mode }: ConfigEnv): UserConfigExport => {
     },
     build: {
       // https://cn.vitejs.dev/guide/build.html#browser-compatibility
-      outDir: 'dist',
-      assetsDir: 'assets',
+      outDir: "dist",
+      assetsDir: "assets",
       target: "es2015",
       sourcemap: false,
       // 消除打包大小超过500kb警告

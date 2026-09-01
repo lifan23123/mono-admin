@@ -2,6 +2,28 @@ import Cookies from "js-cookie";
 import { useUserStoreHook } from "@/store/modules/user";
 import { storageLocal, isString, isIncludeAllChildren } from "@pureadmin/utils";
 
+export interface DataInfo<T = any> {
+  /** token */
+  accessToken?: string;
+  /** `accessToken`的过期时间（时间戳） */
+  expires?: T;
+  /** 用于调用刷新`accessToken`的接口时所需的`token` */
+  refreshToken?: string;
+  /** 头像 */
+  avatar?: string;
+  /** 用户名 */
+  username?: string;
+  /** 昵称 */
+  nickname?: string;
+  /** 当前登录用户的角色 */
+  roles?: Array<string>;
+  /** 按钮级别权限 */
+  permissions?: Array<string>;
+  /** 用户id */
+  id?: number | string;
+  [key: string]: any;
+}
+
 export const userKey = "user-info";
 export const TokenKey = "authorized-token";
 export const multipleTabsKey = "multiple-tabs";
