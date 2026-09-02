@@ -3,6 +3,10 @@ import { ref, reactive, onMounted, shallowRef, onBeforeUnmount, computed } from 
 import { ElMessage } from "element-plus";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import WarningFilled from "~icons/ep/warning-filled";
+import Plus from "~icons/ep/plus";
+import Delete from "~icons/ep/delete";
+import RefreshRight from "~icons/ep/refresh-right";
+import Loading from "~icons/ep/loading";
 import "@wangeditor/editor/dist/css/style.css";
 import { Editor, Toolbar } from "@wangeditor/editor-for-vue";
 import type { IEditorConfig, IToolbarConfig } from "@wangeditor/editor";
@@ -187,6 +191,41 @@ const formData = reactive({
   companyId: "" as string | number,
   state: 1
 });
+
+// 封面图片上传逻辑
+const coverLoading = ref(false);
+
+const handleCoverUpload = async (options: any) => {
+  const file = options.file;
+  if (!file) return;
+
+  const isImage = file.type.startsWith("image/");
+  if (!isImage) {
+    ElMessage.warning("请上传图片文件 (JPG/PNG/GIF/WEBP等)");
+    return;
+  }
+  const isLt10M = file.size / 1024 / 1024 < 10;
+  if (!isLt10M) {
+    ElMessage.warning("上传图片大小不能超过 10MB");
+    return;
+  }
+
+  coverLoading.value = true;
+  try {
+    const url = await uploadToQiniu(file, "notice-cover");
+    formData.icon = url;
+    ElMessage.success("封面图片上传成功");
+  } catch (error: any) {
+    console.error("封面图片上传失败:", error);
+    ElMessage.error(error?.message || "封面图片上传失败");
+  } finally {
+    coverLoading.value = false;
+  }
+};
+
+const handleRemoveCover = () => {
+  formData.icon = "";
+};
 
 const resetForm = () => {
   formData.id = null;
@@ -575,11 +614,55 @@ const handlePreview = async (row: any) => {
         </el-form-item>
 
         <el-form-item label="封面图片">
-          <el-input
-            v-model="formData.icon"
-            placeholder="请输入封面图片 URL 地址 (如 https://...)"
-            clearable
-          />
+          <div class="cover-upload-container">
+            <el-upload
+              class="cover-uploader"
+              :show-file-list="false"
+              :http-request="handleCoverUpload"
+              accept="image/*"
+              :disabled="coverLoading"
+            >
+              <div v-if="formData.icon" class="cover-image-preview">
+                <img :src="formData.icon" class="cover-image" alt="封面图片" />
+                <div class="cover-mask">
+                  <div class="mask-action" title="更换图片">
+                    <component
+                      :is="useRenderIcon(RefreshRight)"
+                      class="text-lg"
+                    />
+                    <span class="text-xs mt-1">更换</span>
+                  </div>
+                  <div
+                    class="mask-action delete"
+                    title="删除图片"
+                    @click.stop="handleRemoveCover"
+                  >
+                    <component
+                      :is="useRenderIcon(Delete)"
+                      class="text-lg"
+                    />
+                    <span class="text-xs mt-1">删除</span>
+                  </div>
+                </div>
+              </div>
+              <div
+                v-else
+                class="cover-upload-placeholder"
+                :class="{ 'is-loading': coverLoading }"
+              >
+                <component
+                  :is="useRenderIcon(coverLoading ? Loading : Plus)"
+                  :class="['upload-icon', { 'is-spinning': coverLoading }]"
+                />
+                <div class="upload-title">
+                  {{ coverLoading ? "上传中..." : "点击上传封面图片" }}
+                </div>
+                <div class="upload-hint">
+                  支持 JPG / PNG / WEBP 等图片格式，大小不超过 10MB
+                </div>
+              </div>
+            </el-upload>
+          </div>
         </el-form-item>
 
         <el-form-item label="公告正文" required>
@@ -606,7 +689,11 @@ const handlePreview = async (row: any) => {
           <el-button @click="dialogVisible = false" class="cancel-btn"
             >取消</el-button
           >
-          <el-button :loading="draftLoading" @click="submitForm(2)">
+          <el-button
+            v-if="!isEdit || formData.state !== 1"
+            :loading="draftLoading"
+            @click="submitForm(2)"
+          >
             存为草稿
           </el-button>
           <el-button
@@ -879,6 +966,134 @@ const handlePreview = async (row: any) => {
 
   :deep(.w-e-text-container) {
     background-color: #fff;
+  }
+}
+
+.cover-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .cover-uploader {
+    :deep(.el-upload) {
+      border: 1px dashed #dcdfe6;
+      border-radius: 8px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      background-color: #fafafa;
+
+      &:hover {
+        border-color: #0076fe;
+        background-color: #f0f7ff;
+      }
+    }
+  }
+
+  .cover-image-preview {
+    position: relative;
+    width: 220px;
+    height: 124px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f7fa;
+    border-radius: 8px;
+    overflow: hidden;
+
+    .cover-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cover-mask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+
+      .mask-action {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: transform 0.15s ease, color 0.15s ease;
+
+        &:hover {
+          transform: scale(1.1);
+          color: #409eff;
+        }
+
+        &.delete:hover {
+          color: #f56c6c;
+        }
+      }
+    }
+
+    &:hover .cover-mask {
+      opacity: 1;
+    }
+  }
+
+  .cover-upload-placeholder {
+    width: 220px;
+    height: 124px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    box-sizing: border-box;
+    text-align: center;
+
+    .upload-icon {
+      font-size: 24px;
+      color: #8c939d;
+      margin-bottom: 6px;
+
+      &.is-spinning {
+        animation: rotating 1.5s linear infinite;
+        color: #0076fe;
+      }
+    }
+
+    .upload-title {
+      font-size: 13px;
+      color: #606266;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .upload-hint {
+      font-size: 11px;
+      color: #909399;
+      line-height: 1.3;
+      transform: scale(0.9);
+    }
+  }
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
