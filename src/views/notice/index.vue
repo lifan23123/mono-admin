@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, shallowRef, onBeforeUnmount, computed } from "vue";
+import {
+  ref,
+  reactive,
+  onMounted,
+  shallowRef,
+  onBeforeUnmount,
+  computed
+} from "vue";
 import { ElMessage } from "element-plus";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import WarningFilled from "~icons/ep/warning-filled";
@@ -10,7 +17,7 @@ import Loading from "~icons/ep/loading";
 import "@wangeditor/editor/dist/css/style.css";
 import { Editor, Toolbar } from "@wangeditor/editor-for-vue";
 import type { IEditorConfig, IToolbarConfig } from "@wangeditor/editor";
-import { uploadToQiniu } from "@/utils/upload";
+import { uploadToQiniu, getQiniuUploadToken } from "@/utils/upload";
 import { useUserStoreHook } from "@/store/modules/user";
 import {
   getAnnouncementList,
@@ -26,7 +33,9 @@ defineOptions({
 });
 
 /** 是否是普通角色 */
-const isCommonRole = computed(() => useUserStoreHook().roles.includes("common"));
+const isCommonRole = computed(() =>
+  useUserStoreHook().roles.includes("common")
+);
 
 // 公司子账号选项
 const companyOptions = ref<{ label: string; value: string }[]>([]);
@@ -155,6 +164,7 @@ const fetchList = async () => {
 
 onMounted(() => {
   fetchList();
+  fetchBaseHref();
   if (!isCommonRole.value) {
     fetchCompanyOptions();
   }
@@ -227,6 +237,102 @@ const handleRemoveCover = () => {
   formData.icon = "";
 };
 
+// 富文本相对资源前缀根地址（从获取七牛token接口返回的url动态获取）
+const baseHref = ref("http://image.cynieq.com/");
+
+/** 获取七牛 Token 中返回的访问域名并更新根地址 */
+const fetchBaseHref = async () => {
+  try {
+    const { domain } = await getQiniuUploadToken();
+    if (domain) {
+      const clean = domain.startsWith("http")
+        ? domain.replace(/\/+$/, "")
+        : `http://${domain.replace(/\/+$/, "")}`;
+      baseHref.value = `${clean}/`;
+    }
+  } catch (error) {
+    console.warn("获取七牛根地址失败，使用当前地址:", error);
+  }
+};
+
+/**
+ * 为富文本设定统一前缀根地址，并封装为完整的 HTML 结构
+ * 格式：<html><head><base href="...">\n</head><body>...</body></html>
+ */
+const wrapNoticeContent = (content: string) => {
+  if (!content) return "";
+  let body = content.trim();
+
+  // 若已包含 <body> 标签，提取正文内容，避免重复嵌套
+  const match = body.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (match) {
+    body = match[1].trim();
+  } else {
+    body = body
+      .replace(/<\/?html[^>]*>/gi, "")
+      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+      .trim();
+  }
+
+  // 将图片路径转为配合 base href 的相对路径格式
+  // 例如 http://image.cynieq.com/image/xxx.png 或 /image/xxx.png -> image/xxx.png
+  body = body.replace(
+    /src=(["'])(?:https?:)?\/\/[^"'>]+?\/(image\/[^"'>]+)\1/gi,
+    'src="$2"'
+  );
+  body = body.replace(
+    /src=(["'])\/(image\/[^"'>]+)\1/gi,
+    'src="$2"'
+  );
+  // data-href 转为 /image/...
+  body = body.replace(
+    /data-href=(["'])(?:https?:)?\/\/[^"'>]+?\/(image\/[^"'>]+)\1/gi,
+    'data-href="/$2"'
+  );
+  body = body.replace(
+    /data-href=(["'])image\/([^"'>]+)\1/gi,
+    'data-href="/image/$2"'
+  );
+
+  return `<html><head><base href="${baseHref.value}">\n</head><body>${body}\n</body></html>`;
+};
+
+/**
+ * 编辑回显和预览时：解析 HTML 正文并补齐前缀根地址，保证后台编辑器中图片正常展示
+ */
+const unwrapNoticeContent = (rawContent: string) => {
+  if (!rawContent) return "";
+  let body = rawContent;
+
+  // 提取 base href 根地址（优先从内容中提取，若无则使用动态获取的 baseHref）
+  const baseMatch = rawContent.match(/<base\s+[^>]*href=["']([^"']+)["']/i);
+  const base = baseMatch && baseMatch[1]
+    ? (baseMatch[1].endsWith("/") ? baseMatch[1] : `${baseMatch[1]}/`)
+    : baseHref.value;
+
+  // 提取 <body> 标签内部正文
+  const bodyMatch = rawContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (bodyMatch) {
+    body = bodyMatch[1];
+  } else {
+    body = body
+      .replace(/<\/?html[^>]*>/gi, "")
+      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "");
+  }
+
+  // 补齐图片绝对路径供后台编辑器渲染
+  body = body.replace(
+    /src=(["'])\/?(image\/[^"'>]+)\1/gi,
+    `src="${base}$2"`
+  );
+  body = body.replace(
+    /data-href=(["'])\/?(image\/[^"'>]+)\1/gi,
+    `data-href="${base}$2"`
+  );
+
+  return body.trim();
+};
+
 const resetForm = () => {
   formData.id = null;
   formData.name = "";
@@ -241,6 +347,7 @@ const openAddDialog = () => {
   resetForm();
   isEdit.value = false;
   dialogTitle.value = "新增公告";
+  fetchBaseHref();
   if (!isCommonRole.value) {
     fetchCompanyOptions();
   }
@@ -252,10 +359,11 @@ const handleEdit = async (row: any) => {
   isEdit.value = true;
   dialogTitle.value = "编辑公告";
   resetForm();
+  fetchBaseHref();
   formData.id = row.id;
   formData.name = row.name || "";
   formData.icon = row.icon || "";
-  formData.content = row.content || "";
+  formData.content = unwrapNoticeContent(row.content || "");
   formData.companyId =
     row.companyId && String(row.companyId) !== "-1"
       ? String(row.companyId)
@@ -273,7 +381,7 @@ const handleEdit = async (row: any) => {
         const detail = res.data;
         formData.name = detail.name || formData.name;
         formData.icon = detail.icon || formData.icon;
-        formData.content = detail.content || formData.content;
+        formData.content = unwrapNoticeContent(detail.content || formData.content);
         if (detail.companyId !== undefined && detail.companyId !== null) {
           formData.companyId =
             String(detail.companyId) !== "-1" ? String(detail.companyId) : "";
@@ -320,7 +428,7 @@ const submitForm = async (targetState: number = 1) => {
     const payload: any = {
       name: formData.name.trim(),
       icon: formData.icon.trim(),
-      content: formData.content,
+      content: wrapNoticeContent(formData.content),
       companyId: companyIdVal,
       state: targetState
     };
@@ -377,13 +485,19 @@ const previewVisible = ref(false);
 const previewData = ref<any>({});
 
 const handlePreview = async (row: any) => {
-  previewData.value = { ...row };
+  previewData.value = {
+    ...row,
+    content: unwrapNoticeContent(row.content || "")
+  };
   previewVisible.value = true;
   if (row.id) {
     try {
       const res = await getAnnouncementDetail({ id: row.id });
       if (res?.data) {
-        previewData.value = res.data;
+        previewData.value = {
+          ...res.data,
+          content: unwrapNoticeContent(res.data.content || "")
+        };
       }
     } catch (e) {
       console.warn("获取公告详情失败:", e);
@@ -637,10 +751,7 @@ const handlePreview = async (row: any) => {
                     title="删除图片"
                     @click.stop="handleRemoveCover"
                   >
-                    <component
-                      :is="useRenderIcon(Delete)"
-                      class="text-lg"
-                    />
+                    <component :is="useRenderIcon(Delete)" class="text-lg" />
                     <span class="text-xs mt-1">删除</span>
                   </div>
                 </div>
@@ -1032,7 +1143,9 @@ const handlePreview = async (row: any) => {
         cursor: pointer;
         padding: 4px 8px;
         border-radius: 4px;
-        transition: transform 0.15s ease, color 0.15s ease;
+        transition:
+          transform 0.15s ease,
+          color 0.15s ease;
 
         &:hover {
           transform: scale(1.1);
