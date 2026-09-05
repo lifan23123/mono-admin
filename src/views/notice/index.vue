@@ -164,7 +164,7 @@ const fetchList = async () => {
 
 onMounted(() => {
   fetchList();
-  // fetchBaseHref(); // 暂时隐藏设定前缀根地址逻辑
+  fetchQiniuDomain();
   if (!isCommonRole.value) {
     fetchCompanyOptions();
   }
@@ -237,35 +237,34 @@ const handleRemoveCover = () => {
   formData.icon = "";
 };
 
-// -------------------------------------------------------------
-// 【暂时隐藏】设定前缀根地址相关逻辑（后续需要可随时恢复）
-// -------------------------------------------------------------
-/*
-// 富文本相对资源前缀根地址（从获取七牛token接口返回的url动态获取）
-const baseHref = ref("http://image.cynieq.com/");
+// 七牛访问域名（默认兜底为 http://image.cynieq.com）
+const qiniuBaseDomain = ref("http://image.cynieq.com");
 
-// 获取七牛 Token 中返回的访问域名并更新根地址
-const fetchBaseHref = async () => {
+/** 获取七牛 Token 中返回的访问域名 */
+const fetchQiniuDomain = async () => {
   try {
     const { domain } = await getQiniuUploadToken();
     if (domain) {
       const clean = domain.startsWith("http")
         ? domain.replace(/\/+$/, "")
         : `http://${domain.replace(/\/+$/, "")}`;
-      baseHref.value = `${clean}/`;
+      qiniuBaseDomain.value = clean;
     }
   } catch (error) {
-    console.warn("获取七牛根地址失败，使用当前地址:", error);
+    console.warn("获取七牛域名失败，使用当前地址:", error);
   }
 };
 
-// 为富文本设定统一前缀根地址，并封装为完整的 HTML 结构
-// 格式：<html><head><base href="...">\n</head><body>...</body></html>
-const wrapNoticeContent = (content: string) => {
+/**
+ * 格式化保存时的富文本内容：
+ * 将图片 src 改为相对路径 /image/...，data-href 保留完整域名地址
+ * 示例：<img src="/image/1788594187353_1n2jng.png" alt="logo.png" data-href="http://image.cynieq.com/image/1788594187353_1n2jng.png" style="" />
+ */
+const formatNoticeContent = (content: string) => {
   if (!content) return "";
   let body = content.trim();
 
-  // 若已包含 <body> 标签，提取正文内容，避免重复嵌套
+  // 若存在 <body> 标签，提取其正文
   const match = body.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
   if (match) {
     body = match[1].trim();
@@ -276,62 +275,90 @@ const wrapNoticeContent = (content: string) => {
       .trim();
   }
 
-  // 将图片路径转为配合 base href 的相对路径格式
-  body = body.replace(
-    /src=(["'])(?:https?:)?\/\/[^"'>]+?\/(image\/[^"'>]+)\1/gi,
-    'src="$2"'
-  );
-  body = body.replace(
-    /src=(["'])\/(image\/[^"'>]+)\1/gi,
-    'src="$2"'
-  );
-  // data-href 转为 /image/...
-  body = body.replace(
-    /data-href=(["'])(?:https?:)?\/\/[^"'>]+?\/(image\/[^"'>]+)\1/gi,
-    'data-href="/$2"'
-  );
-  body = body.replace(
-    /data-href=(["'])image\/([^"'>]+)\1/gi,
-    'data-href="/image/$2"'
-  );
+  const domain = qiniuBaseDomain.value.replace(/\/+$/, "");
 
-  return `<html><head><base href="${baseHref.value}">\n</head><body>${body}\n</body></html>`;
+  // 处理所有 img 标签
+  body = body.replace(/<img\b([^>]*)>/gi, (imgTag, attrs) => {
+    const srcMatch = attrs.match(/\bsrc=(["'])(.*?)\1/i);
+    const dataHrefMatch = attrs.match(/\bdata-href=(["'])(.*?)\1/i);
+
+    const rawSrc = srcMatch ? srcMatch[2] : "";
+    const rawDataHref = dataHrefMatch ? dataHrefMatch[2] : "";
+
+    // 提取 image/xxx.png 相对路径 key
+    let imageKey = "";
+    const keyMatch = (rawSrc || rawDataHref).match(/(?:^|\/)(image\/[^\s"'>]+)/i);
+    if (keyMatch) {
+      imageKey = keyMatch[1];
+    }
+
+    if (imageKey) {
+      const targetSrc = `/${imageKey}`;
+      const targetDataHref =
+        rawDataHref && rawDataHref.startsWith("http")
+          ? rawDataHref
+          : `${domain}/${imageKey}`;
+
+      let newAttrs = attrs;
+      if (srcMatch) {
+        newAttrs = newAttrs.replace(/\bsrc=(["']).*?\1/i, `src="${targetSrc}"`);
+      } else {
+        newAttrs += ` src="${targetSrc}"`;
+      }
+
+      if (dataHrefMatch) {
+        newAttrs = newAttrs.replace(
+          /\bdata-href=(["']).*?\1/i,
+          `data-href="${targetDataHref}"`
+        );
+      } else {
+        newAttrs += ` data-href="${targetDataHref}"`;
+      }
+
+      return `<img${newAttrs}>`;
+    }
+
+    return imgTag;
+  });
+
+  return body;
 };
 
-// 编辑回显和预览时：解析 HTML 正文并补齐前缀根地址，保证后台编辑器中图片正常展示
-const unwrapNoticeContent = (rawContent: string) => {
+/**
+ * 解析回显与预览时的富文本内容：
+ * 将图片 src 补齐为完整网络地址，确保在后台编辑器与预览弹窗中图片正常加载显示
+ */
+const parseNoticeContent = (rawContent: string) => {
   if (!rawContent) return "";
   let body = rawContent;
-
-  // 提取 base href 根地址（优先从内容中提取，若无则使用动态获取的 baseHref）
-  const baseMatch = rawContent.match(/<base\s+[^>]*href=["']([^"']+)["']/i);
-  const base = baseMatch && baseMatch[1]
-    ? (baseMatch[1].endsWith("/") ? baseMatch[1] : `${baseMatch[1]}/`)
-    : baseHref.value;
-
-  // 提取 <body> 标签内部正文
-  const bodyMatch = rawContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  if (bodyMatch) {
-    body = bodyMatch[1];
-  } else {
-    body = body
-      .replace(/<\/?html[^>]*>/gi, "")
-      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "");
+  const match = body.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (match) {
+    body = match[1].trim();
   }
 
-  // 补齐图片绝对路径供后台编辑器渲染
-  body = body.replace(
-    /src=(["'])\/?(image\/[^"'>]+)\1/gi,
-    `src="${base}$2"`
-  );
-  body = body.replace(
-    /data-href=(["'])\/?(image\/[^"'>]+)\1/gi,
-    `data-href="${base}$2"`
-  );
+  const domain = qiniuBaseDomain.value.replace(/\/+$/, "");
 
-  return body.trim();
+  body = body.replace(/<img\b([^>]*)>/gi, (imgTag, attrs) => {
+    const srcMatch = attrs.match(/\bsrc=(["'])(.*?)\1/i);
+    const dataHrefMatch = attrs.match(/\bdata-href=(["'])(.*?)\1/i);
+
+    const rawSrc = srcMatch ? srcMatch[2] : "";
+    const rawDataHref = dataHrefMatch ? dataHrefMatch[2] : "";
+
+    if (rawDataHref && rawDataHref.startsWith("http")) {
+      if (srcMatch) {
+        return `<img${attrs.replace(/\bsrc=(["']).*?\1/i, `src="${rawDataHref}"`)}>`;
+      }
+    } else if (rawSrc && rawSrc.startsWith("/image/")) {
+      const fullUrl = `${domain}${rawSrc}`;
+      return `<img${attrs.replace(/\bsrc=(["']).*?\1/i, `src="${fullUrl}"`)}>`;
+    }
+
+    return imgTag;
+  });
+
+  return body;
 };
-*/
 
 const resetForm = () => {
   formData.id = null;
@@ -347,6 +374,7 @@ const openAddDialog = () => {
   resetForm();
   isEdit.value = false;
   dialogTitle.value = "新增公告";
+  fetchQiniuDomain();
   if (!isCommonRole.value) {
     fetchCompanyOptions();
   }
@@ -358,10 +386,11 @@ const handleEdit = async (row: any) => {
   isEdit.value = true;
   dialogTitle.value = "编辑公告";
   resetForm();
+  fetchQiniuDomain();
   formData.id = row.id;
   formData.name = row.name || "";
   formData.icon = row.icon || "";
-  formData.content = row.content || "";
+  formData.content = parseNoticeContent(row.content || "");
   formData.companyId =
     row.companyId && String(row.companyId) !== "-1"
       ? String(row.companyId)
@@ -379,7 +408,7 @@ const handleEdit = async (row: any) => {
         const detail = res.data;
         formData.name = detail.name || formData.name;
         formData.icon = detail.icon || formData.icon;
-        formData.content = detail.content || formData.content;
+        formData.content = parseNoticeContent(detail.content || formData.content);
         if (detail.companyId !== undefined && detail.companyId !== null) {
           formData.companyId =
             String(detail.companyId) !== "-1" ? String(detail.companyId) : "";
@@ -426,7 +455,7 @@ const submitForm = async (targetState: number = 1) => {
     const payload: any = {
       name: formData.name.trim(),
       icon: formData.icon.trim(),
-      content: formData.content,
+      content: formatNoticeContent(formData.content),
       companyId: companyIdVal,
       state: targetState
     };
@@ -483,13 +512,20 @@ const previewVisible = ref(false);
 const previewData = ref<any>({});
 
 const handlePreview = async (row: any) => {
-  previewData.value = { ...row };
+  fetchQiniuDomain();
+  previewData.value = {
+    ...row,
+    content: parseNoticeContent(row.content || "")
+  };
   previewVisible.value = true;
   if (row.id) {
     try {
       const res = await getAnnouncementDetail({ id: row.id });
       if (res?.data) {
-        previewData.value = res.data;
+        previewData.value = {
+          ...res.data,
+          content: parseNoticeContent(res.data.content || "")
+        };
       }
     } catch (e) {
       console.warn("获取公告详情失败:", e);
