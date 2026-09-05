@@ -164,7 +164,7 @@ const fetchList = async () => {
 
 onMounted(() => {
   fetchList();
-  fetchBaseHref();
+  // fetchBaseHref(); // 暂时隐藏设定前缀根地址逻辑
   if (!isCommonRole.value) {
     fetchCompanyOptions();
   }
@@ -237,10 +237,14 @@ const handleRemoveCover = () => {
   formData.icon = "";
 };
 
+// -------------------------------------------------------------
+// 【暂时隐藏】设定前缀根地址相关逻辑（后续需要可随时恢复）
+// -------------------------------------------------------------
+/*
 // 富文本相对资源前缀根地址（从获取七牛token接口返回的url动态获取）
 const baseHref = ref("http://image.cynieq.com/");
 
-/** 获取七牛 Token 中返回的访问域名并更新根地址 */
+// 获取七牛 Token 中返回的访问域名并更新根地址
 const fetchBaseHref = async () => {
   try {
     const { domain } = await getQiniuUploadToken();
@@ -255,10 +259,8 @@ const fetchBaseHref = async () => {
   }
 };
 
-/**
- * 为富文本设定统一前缀根地址，并封装为完整的 HTML 结构
- * 格式：<html><head><base href="...">\n</head><body>...</body></html>
- */
+// 为富文本设定统一前缀根地址，并封装为完整的 HTML 结构
+// 格式：<html><head><base href="...">\n</head><body>...</body></html>
 const wrapNoticeContent = (content: string) => {
   if (!content) return "";
   let body = content.trim();
@@ -275,7 +277,6 @@ const wrapNoticeContent = (content: string) => {
   }
 
   // 将图片路径转为配合 base href 的相对路径格式
-  // 例如 http://image.cynieq.com/image/xxx.png 或 /image/xxx.png -> image/xxx.png
   body = body.replace(
     /src=(["'])(?:https?:)?\/\/[^"'>]+?\/(image\/[^"'>]+)\1/gi,
     'src="$2"'
@@ -297,9 +298,7 @@ const wrapNoticeContent = (content: string) => {
   return `<html><head><base href="${baseHref.value}">\n</head><body>${body}\n</body></html>`;
 };
 
-/**
- * 编辑回显和预览时：解析 HTML 正文并补齐前缀根地址，保证后台编辑器中图片正常展示
- */
+// 编辑回显和预览时：解析 HTML 正文并补齐前缀根地址，保证后台编辑器中图片正常展示
 const unwrapNoticeContent = (rawContent: string) => {
   if (!rawContent) return "";
   let body = rawContent;
@@ -332,6 +331,7 @@ const unwrapNoticeContent = (rawContent: string) => {
 
   return body.trim();
 };
+*/
 
 const resetForm = () => {
   formData.id = null;
@@ -347,7 +347,6 @@ const openAddDialog = () => {
   resetForm();
   isEdit.value = false;
   dialogTitle.value = "新增公告";
-  fetchBaseHref();
   if (!isCommonRole.value) {
     fetchCompanyOptions();
   }
@@ -359,11 +358,10 @@ const handleEdit = async (row: any) => {
   isEdit.value = true;
   dialogTitle.value = "编辑公告";
   resetForm();
-  fetchBaseHref();
   formData.id = row.id;
   formData.name = row.name || "";
   formData.icon = row.icon || "";
-  formData.content = unwrapNoticeContent(row.content || "");
+  formData.content = row.content || "";
   formData.companyId =
     row.companyId && String(row.companyId) !== "-1"
       ? String(row.companyId)
@@ -381,7 +379,7 @@ const handleEdit = async (row: any) => {
         const detail = res.data;
         formData.name = detail.name || formData.name;
         formData.icon = detail.icon || formData.icon;
-        formData.content = unwrapNoticeContent(detail.content || formData.content);
+        formData.content = detail.content || formData.content;
         if (detail.companyId !== undefined && detail.companyId !== null) {
           formData.companyId =
             String(detail.companyId) !== "-1" ? String(detail.companyId) : "";
@@ -428,7 +426,7 @@ const submitForm = async (targetState: number = 1) => {
     const payload: any = {
       name: formData.name.trim(),
       icon: formData.icon.trim(),
-      content: wrapNoticeContent(formData.content),
+      content: formData.content,
       companyId: companyIdVal,
       state: targetState
     };
@@ -485,19 +483,13 @@ const previewVisible = ref(false);
 const previewData = ref<any>({});
 
 const handlePreview = async (row: any) => {
-  previewData.value = {
-    ...row,
-    content: unwrapNoticeContent(row.content || "")
-  };
+  previewData.value = { ...row };
   previewVisible.value = true;
   if (row.id) {
     try {
       const res = await getAnnouncementDetail({ id: row.id });
       if (res?.data) {
-        previewData.value = {
-          ...res.data,
-          content: unwrapNoticeContent(res.data.content || "")
-        };
+        previewData.value = res.data;
       }
     } catch (e) {
       console.warn("获取公告详情失败:", e);
