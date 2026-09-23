@@ -223,3 +223,62 @@ export const getUploadToken = (data?: object) => {
     responseType: "text"
   });
 };
+
+/** 表情列表 */
+export const getEmojiList = (data?: object) => {
+  return http.request<any>("post", "/imchat/imbiaoqingmain/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 表情创建 */
+export const createEmoji = (data?: FormData | object) => {
+  return http.request<any>("post", "/imchat/imbiaoqingmain/create", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 表情更新 */
+export const updateEmoji = (data?: FormData | object) => {
+  return http.request<any>("post", "/imchat/imbiaoqingmain/update", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 表情删除 */
+export const deleteEmoji = (data?: object) => {
+  return http.request<any>("post", "/imchat/imbiaoqingmain/del", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 表情详情列表 (子表情列表) */
+export const getEmojiDetailList = (data?: object) => {
+  return http.request<any>("post", "/imchat/imbiaoqingmain/list/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 表情详情项删除 (删除单个子表情) */
+export const deleteEmojiDetailItem = (data?: object) => {
+  return http.request<any>("post", "/imchat/imbiaoqingmain/list/del", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 表情详情项创建 (新增单个表情) */
+export const createEmojiDetailItem = (data?: object) => {
+  return http.request<any>("post", "/imchat/imbiaoqingmain/list/create", {
+    data,
+    responseType: "text"
+  });
+};
+
+
+

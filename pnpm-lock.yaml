@@ -20,6 +20,9 @@ importers:
       '@pureadmin/utils':
         specifier: ^2.6.2
         version: 2.6.2(echarts@6.0.0)(vue@3.5.22(typescript@5.9.3))
+      '@types/pako':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@vueuse/core':
         specifier: ^14.0.0
         version: 14.0.0(vue@3.5.22(typescript@5.9.3))
@@ -53,12 +56,18 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
+      lottie-web:
+        specifier: ^5.13.0
+        version: 5.13.0
       mitt:
         specifier: ^3.0.1
         version: 3.0.1
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
+      pako:
+        specifier: ^3.0.2
+        version: 3.0.2
       path-browserify:
         specifier: ^1.0.1
         version: 1.0.1
@@ -1349,6 +1358,10 @@ packages:
 
   '@types/nprogress@0.2.3':
     resolution: {integrity: sha512-k7kRA033QNtC+gLc4VPlfnue58CM1iQLgn1IMAU8VPHGOj7oIHPp9UlhedEnD/Gl8evoCjwkZjlBORtZ3JByUA==}
+
+  '@types/pako@3.0.0':
+    resolution: {integrity: sha512-MtIzg1Ul1GxhHZLq6oSKvWQENKqmfK1fdaW+SDcPJe7+YcJVo6AbmkW0BvGFH6+559+hEuCwdXZZe8F85lBPkA==}
+    deprecated: This is a stub types definition. pako provides its own type definitions, so you do not need this installed.
 
   '@types/path-browserify@1.0.3':
     resolution: {integrity: sha512-ZmHivEbNCBtAfcrFeBCiTjdIc2dey0l7oCGNGpSuRTy8jP6UVND7oUowlvDujBy8r2Hoa8bfFUOCiPWfmtkfxw==}
@@ -3097,6 +3110,9 @@ packages:
   lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
+  lottie-web@5.13.0:
+    resolution: {integrity: sha512-+gfBXl6sxXMPe8tKQm7qzLnUy5DUPJPKIyRHwtpCpyUEYjHYRJC/5gjUvdkuO2c3JllrPtHXH5UJJK8LRYl5yQ==}
+
   lru-cache@11.2.2:
     resolution: {integrity: sha512-F9ODfyqML2coTIsQpSkRHnLSZMtkU8Q+mSfcaIyKwy58u+8k5nvAYeiNhsyMARvzNcXJ9QfWVrcPsC9e9rAxtg==}
     engines: {node: 20 || >=22}
@@ -3323,6 +3339,9 @@ packages:
 
   package-manager-detector@1.5.0:
     resolution: {integrity: sha512-uBj69dVlYe/+wxj8JOpr97XfsxH/eumMt6HqjNTmJDf/6NO9s+0uxeOneIz3AsPt2m6y9PqzDzd3ATcU17MNfw==}
+
+  pako@3.0.2:
+    resolution: {integrity: sha512-uBv6IT2aT1A78iU6dpNEbf6+CyhlV/6g9JlJs9kpgjFGFhruIICVRysF/W0SLzXg5+hCl+KroH7e4YUyfEmgLg==}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -5543,6 +5562,10 @@ snapshots:
 
   '@types/nprogress@0.2.3': {}
 
+  '@types/pako@3.0.0':
+    dependencies:
+      pako: 3.0.2
+
   '@types/path-browserify@1.0.3': {}
 
   '@types/qs@6.14.0': {}
@@ -7531,6 +7554,8 @@ snapshots:
 
   lodash@4.17.21: {}
 
+  lottie-web@5.13.0: {}
+
   lru-cache@11.2.2: {}
 
   lru-cache@5.1.1:
@@ -7733,6 +7758,8 @@ snapshots:
   package-json-from-dist@1.0.1: {}
 
   package-manager-detector@1.5.0: {}
+
+  pako@3.0.2: {}
 
   parent-module@1.0.1:
     dependencies:

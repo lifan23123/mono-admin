@@ -98,7 +98,11 @@ class PureHttp {
         }
 
         // 加密请求数据
-        if (config.data && typeof config.data === "object") {
+        if (
+          config.data &&
+          typeof config.data === "object" &&
+          !(config.data instanceof FormData)
+        ) {
           try {
             console.log("加密前的jsonStr", config.data);
             const jsonStr = JSON.stringify(config.data);
@@ -108,6 +112,11 @@ class PureHttp {
             config.transformRequest = [data => data];
           } catch (e) {
             console.error("Request encryption failed", e);
+          }
+        } else if (config.data instanceof FormData) {
+          // 如果是 FormData，移除默认的 Content-Type，让浏览器/axios 自动设置正确的 multipart/form-data 边界
+          if (config.headers) {
+            delete config.headers["Content-Type"];
           }
         }
 
