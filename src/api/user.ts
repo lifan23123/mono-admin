@@ -280,5 +280,14 @@ export const createEmojiDetailItem = (data?: object) => {
   });
 };
 
+/** 帖子列表 */
+export const getPostList = (data?: object) => {
+  return http.request<any>("post", "/imchat/immoment/all/list", {
+    data,
+    responseType: "text"
+  });
+};
+
+
 
 
