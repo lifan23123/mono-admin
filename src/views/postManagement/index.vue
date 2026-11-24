@@ -1,66 +1,93 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessageBox } from "element-plus";
-import { getPostList } from "@/api/user";
+import { getPostList, getQiNiuDomain, updateUserState } from "@/api/user";
 import { message } from "@/utils/message";
-import { MOCK_POST_LIST, type PostItem } from "./mockData";
 
 defineOptions({
   name: "PostManagementIndex"
 });
 
+interface ImsUserResp {
+  id?: number;
+  name?: string;
+  icon?: string;
+}
+
+interface ApiPostItem {
+  id: number;
+  userId?: number;
+  companyId?: number;
+  content?: string;
+  contentType?: string;
+  createTime?: string;
+  updateTime?: string;
+  likeCount?: number;
+  commentCount?: number;
+  visitCount?: number;
+  state?: string | number;
+  visibility?: string;
+  url?: any[];
+  imsUserResp?: ImsUserResp;
+  [key: string]: any;
+}
+
 const router = useRouter();
 
-const searchQuery = ref("");
 const currentPage = ref(1);
 const pageSize = ref(20);
+const total = ref(0);
 const loading = ref(false);
+const tableData = ref<ApiPostItem[]>([]);
+const qiniuDomain = ref("");
 
-// 暂时使用写死的测试数据，后续可直接替换为接口返回数据
-const allPosts = ref<PostItem[]>(MOCK_POST_LIST.map(item => ({ ...item })));
-
-const filteredList = computed(() => {
-  const keyword = searchQuery.value.trim().toLowerCase();
-  if (!keyword) return allPosts.value;
-  return allPosts.value.filter(
-    item =>
-      String(item.id).includes(keyword) ||
-      item.authorName.toLowerCase().includes(keyword) ||
-      item.authorAccount.toLowerCase().includes(keyword) ||
-      item.content.toLowerCase().includes(keyword)
-  );
-});
-
-const total = computed(() => filteredList.value.length);
-
-const tableData = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  return filteredList.value.slice(start, start + pageSize.value);
-});
-
-// 保留原有接口调用逻辑
-const fetchPostList = async () => {
+const fetchQiNiuDomain = async () => {
   try {
-    const res = await getPostList({
-      pageNo: currentPage.value,
-      pageSize: pageSize.value
-    });
-    console.log("post list:", res);
+    const res = await getQiNiuDomain();
+    const { data } = res as any;
+    if (data) qiniuDomain.value = data;
   } catch (e) {
-    console.error("Failed to fetch post list:", e);
+    console.error("Failed to fetch qiniu domain:", e);
   }
 };
 
-const handleSearch = () => {
-  currentPage.value = 1;
-  fetchPostList();
+const getUrl = (path?: string) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  let domainBase = "";
+  if (typeof qiniuDomain.value === "string") {
+    domainBase = qiniuDomain.value;
+  } else if (qiniuDomain.value && typeof qiniuDomain.value === "object") {
+    domainBase = (qiniuDomain.value as any).url || "";
+  }
+  const domain = domainBase.replace(/\/$/, "");
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return domain ? domain + cleanPath : path;
 };
 
-const handleReset = () => {
-  searchQuery.value = "";
-  currentPage.value = 1;
-  fetchPostList();
+// 调用帖子列表接口
+const fetchPostList = async () => {
+  loading.value = true;
+  try {
+    const res = (await getPostList({
+      pageNo: currentPage.value,
+      pageSize: pageSize.value
+    })) as any;
+    console.log("post list:", res);
+    if (res?.code === "0000") {
+      const list = Array.isArray(res.data) ? res.data : res.data?.list || [];
+      tableData.value = list;
+      total.value = res.total ?? res.data?.total ?? list.length;
+    } else {
+      tableData.value = [];
+      total.value = 0;
+    }
+  } catch (e) {
+    console.error("Failed to fetch post list:", e);
+  } finally {
+    loading.value = false;
+  }
 };
 
 const handleSizeChange = (val: number) => {
@@ -75,35 +102,47 @@ const handleCurrentChange = (val: number) => {
 };
 
 /** 查看详情 */
-const handleViewDetail = (row: PostItem) => {
+const handleViewDetail = (row: ApiPostItem) => {
   router.push({
     path: "/post-management/detail",
     query: { id: String(row.id) }
   });
 };
 
-/** 封号（暂时给定方法，后续对接封号接口） */
-const handleBanUser = (row: PostItem) => {
-  const actionText = row.authorStatus === 1 ? "封号" : "解封";
-  ElMessageBox.confirm(
-    `确定要对用户「${row.authorName}」执行${actionText}操作吗？`,
-    "提示",
-    {
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
-      type: "warning"
-    }
-  )
-    .then(() => {
-      // TODO: 对接封号/解封接口
-      row.authorStatus = row.authorStatus === 1 ? 0 : 1;
-      message(`${actionText}成功（测试数据演示）`, { type: "success" });
+/** 封号 */
+const handleBanUser = (row: ApiPostItem) => {
+  const userId = row.imsUserResp?.id ?? row.userId;
+  if (userId === undefined || userId === null) {
+    message("未获取到发帖人用户ID", { type: "error" });
+    return;
+  }
+  const userName = row.imsUserResp?.name || `用户(${userId})`;
+  ElMessageBox.confirm(`确定要对发帖人「${userName}」执行封号操作吗？`, "提示", {
+    confirmButtonText: "确定",
+    cancelButtonText: "取消",
+    type: "warning"
+  })
+    .then(async () => {
+      try {
+        const res = (await updateUserState({
+          id: userId,
+          state: 2
+        })) as any;
+        if (res?.code === "0000") {
+          message("封号成功", { type: "success" });
+          fetchPostList();
+        } else {
+          message(res?.message || "封号失败", { type: "error" });
+        }
+      } catch (e) {
+        message("操作异常", { type: "error" });
+      }
     })
     .catch(() => {});
 };
 
 /** 删除帖子（暂时给定方法，后续对接删除接口） */
-const handleDeletePost = (row: PostItem) => {
+const handleDeletePost = (row: ApiPostItem) => {
   ElMessageBox.confirm(`确定要删除帖子（ID: ${row.id}）吗？`, "提示", {
     confirmButtonText: "确定",
     cancelButtonText: "取消",
@@ -111,19 +150,15 @@ const handleDeletePost = (row: PostItem) => {
   })
     .then(() => {
       // TODO: 对接删除帖子接口
-      allPosts.value = allPosts.value.filter(item => item.id !== row.id);
-      message("删除成功（测试数据演示）", { type: "success" });
+      tableData.value = tableData.value.filter(item => item.id !== row.id);
+      total.value = Math.max(0, total.value - 1);
+      message("删除成功（待对接接口）", { type: "success" });
     })
     .catch(() => {});
 };
 
-const getMediaTypeText = (row: PostItem) => {
-  if (row.mediaType === "video") return "视频";
-  if (row.mediaType === "image") return `图片(${row.images.length})`;
-  return "纯文字";
-};
-
-onMounted(() => {
+onMounted(async () => {
+  await fetchQiNiuDomain();
   fetchPostList();
 });
 </script>
@@ -131,30 +166,6 @@ onMounted(() => {
 <template>
   <div class="post-management-container p-4">
     <el-card shadow="never" class="main-card border-none border-radius-16">
-      <!-- 顶部筛选区 -->
-      <div class="filter-wrapper mb-6">
-        <div class="flex items-center flex-wrap">
-          <span class="mr-4 text-sm text-gray-600">关键词</span>
-          <el-input
-            v-model="searchQuery"
-            placeholder="帖子ID / 发布者 / 帖子内容"
-            class="search-input mr-4"
-            clearable
-            @keyup.enter="handleSearch"
-          />
-          <el-button
-            type="primary"
-            class="search-btn ml-2 px-6"
-            @click="handleSearch"
-          >
-            搜索
-          </el-button>
-          <el-button class="reset-btn ml-3 px-6" @click="handleReset">
-            重置
-          </el-button>
-        </div>
-      </div>
-
       <!-- 表格区域 -->
       <el-table
         v-loading="loading"
@@ -163,89 +174,39 @@ onMounted(() => {
         class="custom-table flex-1"
         height="100%"
       >
-        <el-table-column prop="id" label="帖子ID" width="100" align="center" />
+        <el-table-column prop="id" label="ID" width="120" align="center" />
 
-        <el-table-column label="发布者" min-width="170">
+        <el-table-column label="发帖人" min-width="220">
           <template #default="{ row }">
             <div class="flex items-center">
               <el-image
-                v-if="row.authorAvatar"
-                :src="row.authorAvatar"
+                v-if="row.imsUserResp?.icon"
+                :src="getUrl(row.imsUserResp.icon)"
                 class="avatar-wrapper mr-3"
                 fit="cover"
               >
                 <template #error>
                   <div class="avatar-wrapper avatar-text mr-3">
-                    {{ (row.authorName || "用").substring(0, 1) }}
+                    {{ (row.imsUserResp?.name || "用").substring(0, 1) }}
                   </div>
                 </template>
               </el-image>
               <div v-else class="avatar-wrapper avatar-text mr-3">
-                {{ (row.authorName || "用").substring(0, 1) }}
+                {{ (row.imsUserResp?.name || "用").substring(0, 1) }}
               </div>
               <div class="flex flex-col">
                 <span class="text-gray-700 font-medium leading-tight">
-                  {{ row.authorName }}
+                  {{ row.imsUserResp?.name || "-" }}
                 </span>
                 <span class="text-xs text-gray-400 mt-0.5">
-                  {{ row.authorAccount }}
+                  ID: {{ row.imsUserResp?.id ?? row.userId ?? "-" }}
                 </span>
               </div>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column label="帖子内容" min-width="300">
-          <template #default="{ row }">
-            <div class="post-content-cell">
-              <p class="content-text text-gray-700">{{ row.content }}</p>
-              <div class="mt-1 flex items-center gap-2">
-                <span
-                  :class="[
-                    'media-tag',
-                    row.mediaType === 'video'
-                      ? 'media-video'
-                      : row.mediaType === 'image'
-                        ? 'media-image'
-                        : 'media-text'
-                  ]"
-                >
-                  {{ getMediaTypeText(row) }}
-                </span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="点赞 / 评论" width="130" align="center">
-          <template #default="{ row }">
-            <span class="text-gray-600">
-              {{ row.likeCount }} / {{ row.commentCount }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column
-          prop="createTime"
-          label="发布时间"
-          min-width="170"
-          align="center"
-        />
-
-        <el-table-column label="账号状态" width="110" align="center">
-          <template #default="{ row }">
-            <span
-              :class="[
-                'status-tag',
-                row.authorStatus === 1 ? 'status-normal' : 'status-abnormal'
-              ]"
-            >
-              {{ row.authorStatus === 1 ? "正常" : "已封号" }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="220" align="center" fixed="right">
+        <el-table-column label="操作" width="240" align="center" fixed="right">
           <template #default="{ row }">
             <el-button
               link
@@ -257,11 +218,11 @@ onMounted(() => {
             </el-button>
             <el-button
               link
-              :type="row.authorStatus === 1 ? 'warning' : 'success'"
+              type="warning"
               class="op-link"
               @click="handleBanUser(row)"
             >
-              {{ row.authorStatus === 1 ? "封号" : "解封" }}
+              封号
             </el-button>
             <el-button
               link
@@ -315,30 +276,6 @@ onMounted(() => {
       display: flex;
       flex-direction: column;
       overflow: hidden;
-    }
-
-    .filter-wrapper {
-      flex-shrink: 0;
-
-      .search-input {
-        width: 280px;
-        :deep(.el-input__wrapper) {
-          border-radius: 8px;
-          height: 40px;
-        }
-      }
-
-      .search-btn {
-        height: 40px;
-        border-radius: 8px;
-        background-color: #0076fe;
-        border: none;
-      }
-
-      .reset-btn {
-        height: 40px;
-        border-radius: 8px;
-      }
     }
   }
 

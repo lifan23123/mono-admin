@@ -288,6 +288,14 @@ export const getPostList = (data?: object) => {
   });
 };
 
+/** 修改用户状态（封号/解封） */
+export const updateUserState = (data?: object) => {
+  return http.request<any>("post", "/imchat/imsuser/state", {
+    data,
+    responseType: "text"
+  });
+};
+
 
 
 

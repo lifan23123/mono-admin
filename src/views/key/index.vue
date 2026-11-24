@@ -10,6 +10,7 @@ defineOptions({
 const configForm = reactive({
   appKey: "",
   appSecret: "",
+  imPushSecret: "",
   qiniuAccessKey: "",
   qiniuSecretKey: "",
   qiniuDomain: "",
@@ -33,6 +34,7 @@ const fetchConfig = async () => {
       }
       configForm.appKey = dm.appKey || "";
       configForm.appSecret = dm.appSerect || ""; // 映射 appSerect
+      configForm.imPushSecret = dm.imPushSecret || "";
       configForm.qiniuAccessKey = dm.qiniuAccessKey || "";
       configForm.qiniuSecretKey = dm.qiniuSecretKey || "";
       configForm.qiniuDomain = dm.qiniuDomain || "";
@@ -55,6 +57,7 @@ const handleSave = async () => {
       dataMap: {
         appKey: configForm.appKey,
         appSerect: configForm.appSecret,
+        imPushSecret: configForm.imPushSecret,
         qiniuAccessKey: configForm.qiniuAccessKey,
         qiniuSecretKey: configForm.qiniuSecretKey,
         qiniuDomain: configForm.qiniuDomain,
@@ -75,6 +78,7 @@ const handleSave = async () => {
 const handleReset = () => {
   configForm.appKey = "";
   configForm.appSecret = "";
+  configForm.imPushSecret = "";
   configForm.qiniuAccessKey = "";
   configForm.qiniuSecretKey = "";
   configForm.qiniuDomain = "";
@@ -112,6 +116,17 @@ const handleReset = () => {
               <el-input
                 v-model="configForm.appSecret"
                 placeholder="请输入 App Secret/秘钥"
+                class="custom-input"
+              />
+            </el-form-item>
+          </el-col>
+
+          <!-- IM推送秘钥 -->
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="IM推送秘钥">
+              <el-input
+                v-model="configForm.imPushSecret"
+                placeholder="请输入 IM推送秘钥"
                 class="custom-input"
               />
             </el-form-item>
