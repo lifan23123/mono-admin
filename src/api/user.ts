@@ -296,6 +296,30 @@ export const updateUserState = (data?: object) => {
   });
 };
 
+/** 帖子评论分页列表 */
+export const getPostReplyPage = (data?: object) => {
+  return http.request<any>("post", "/imchat/immoment/reply/page", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 删除帖子评论 */
+export const deletePostReply = (data?: object) => {
+  return http.request<any>("post", "/imchat/immoment/del/reply", {
+    data,
+    responseType: "text"
+  });
+};
+
+/** 删除帖子 */
+export const deletePost = (data?: object) => {
+  return http.request<any>("post", "/imchat/immoment/del", {
+    data,
+    responseType: "text"
+  });
+};
+
 
 
 

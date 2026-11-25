@@ -2,7 +2,12 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessageBox } from "element-plus";
-import { getPostList, getQiNiuDomain, updateUserState } from "@/api/user";
+import {
+  getPostList,
+  getQiNiuDomain,
+  updateUserState,
+  deletePost
+} from "@/api/user";
 import { message } from "@/utils/message";
 
 defineOptions({
@@ -103,6 +108,11 @@ const handleCurrentChange = (val: number) => {
 
 /** 查看详情 */
 const handleViewDetail = (row: ApiPostItem) => {
+  try {
+    sessionStorage.setItem(`post_detail_${row.id}`, JSON.stringify(row));
+  } catch (e) {
+    console.error("Failed to cache post detail:", e);
+  }
   router.push({
     path: "/post-management/detail",
     query: { id: String(row.id) }
@@ -141,18 +151,28 @@ const handleBanUser = (row: ApiPostItem) => {
     .catch(() => {});
 };
 
-/** 删除帖子（暂时给定方法，后续对接删除接口） */
+/** 删除帖子 */
 const handleDeletePost = (row: ApiPostItem) => {
   ElMessageBox.confirm(`确定要删除帖子（ID: ${row.id}）吗？`, "提示", {
     confirmButtonText: "确定",
     cancelButtonText: "取消",
     type: "warning"
   })
-    .then(() => {
-      // TODO: 对接删除帖子接口
-      tableData.value = tableData.value.filter(item => item.id !== row.id);
-      total.value = Math.max(0, total.value - 1);
-      message("删除成功（待对接接口）", { type: "success" });
+    .then(async () => {
+      try {
+        const res = (await deletePost({ id: row.id })) as any;
+        if (res?.code === "0000") {
+          message("删除成功", { type: "success" });
+          if (tableData.value.length === 1 && currentPage.value > 1) {
+            currentPage.value -= 1;
+          }
+          fetchPostList();
+        } else {
+          message(res?.message || "删除失败", { type: "error" });
+        }
+      } catch (e) {
+        message("操作异常", { type: "error" });
+      }
     })
     .catch(() => {});
 };
@@ -205,6 +225,26 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
+
+        <el-table-column label="帖子状态" width="120" align="center">
+          <template #default="{ row }">
+            <span
+              :class="[
+                'status-tag',
+                String(row.state) === '1' ? 'status-normal' : 'status-abnormal'
+              ]"
+            >
+              {{ String(row.state) === "1" ? "正常" : "禁用" }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column
+          prop="createTime"
+          label="发布时间"
+          min-width="180"
+          align="center"
+        />
 
         <el-table-column label="操作" width="240" align="center" fixed="right">
           <template #default="{ row }">
