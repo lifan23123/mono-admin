@@ -175,11 +175,15 @@ const handleBanUser = () => {
     return;
   }
   const userName = postDetail.value.imsUserResp?.name || `用户(${userId})`;
-  ElMessageBox.confirm(`确定要对发帖人「${userName}」执行封号操作吗？`, "提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning"
-  })
+  ElMessageBox.confirm(
+    `确定要对发帖人「${userName}」执行封号操作吗？`,
+    "提示",
+    {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    }
+  )
     .then(async () => {
       try {
         const res = (await updateUserState({
@@ -271,7 +275,10 @@ const handleDeleteComment = (comment: PostReplyItem) => {
         const res = (await deletePostReply({ id: comment.id })) as any;
         if (res?.code === "0000") {
           message("删除成功", { type: "success" });
-          if (postDetail.value && typeof postDetail.value.commentCount === "number") {
+          if (
+            postDetail.value &&
+            typeof postDetail.value.commentCount === "number"
+          ) {
             postDetail.value.commentCount = Math.max(
               0,
               postDetail.value.commentCount - 1
@@ -362,9 +369,7 @@ onMounted(async () => {
               >
                 <template #error>
                   <div class="avatar-wrapper avatar-text mr-3">
-                    {{
-                      (postDetail.imsUserResp?.name || "用").substring(0, 1)
-                    }}
+                    {{ (postDetail.imsUserResp?.name || "用").substring(0, 1) }}
                   </div>
                 </template>
               </el-image>
@@ -493,9 +498,10 @@ onMounted(async () => {
                         {{ comment.userResp?.name || "-" }}
                       </span>
                       <span class="text-xs text-gray-400">
-                        (ID: {{ comment.userResp?.id ?? comment.userId ?? "-" }})
+                        (ID:
+                        {{ comment.userResp?.id ?? comment.userId ?? "-" }})
                       </span>
-                      <span
+                      <!-- <span
                         v-if="
                           comment.parentId &&
                           comment.parentId > 0 &&
@@ -507,7 +513,7 @@ onMounted(async () => {
                         <span class="text-blue-500 font-medium">
                           @{{ comment.replyUserResp.name }}
                         </span>
-                      </span>
+                      </span> -->
                     </div>
                     <span class="text-xs text-gray-400 shrink-0">
                       {{ comment.createTime || "-" }}
@@ -516,7 +522,9 @@ onMounted(async () => {
                   <p class="text-sm text-gray-600 leading-6 mt-2 mb-0">
                     {{ comment.content }}
                   </p>
-                  <div class="flex items-center justify-between text-xs text-gray-400 mt-2">
+                  <div
+                    class="flex items-center justify-between text-xs text-gray-400 mt-2"
+                  >
                     <span>点赞 {{ comment.likeCount ?? 0 }}</span>
                     <el-button
                       link

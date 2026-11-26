@@ -269,6 +269,41 @@ const handleToggleTequan = (row: any) => {
     }
   });
 };
+
+const handleToggleState = (row: any) => {
+  const isNormal = row.state === 1;
+  const newState = isNormal ? 2 : 1;
+  const actionText = isNormal ? "禁用" : "解禁";
+
+  ElMessageBox.confirm(
+    `确认要${actionText}用户“${row.name || row.nickname}”吗？`,
+    "提示",
+    {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    }
+  )
+    .then(async () => {
+      try {
+        const res = await getUserUpdate({
+          id: row.id,
+          state: newState
+        });
+        if ((res as any).code === "0000") {
+          message(`${actionText}成功`, { type: "success" });
+          fetchUserList();
+        } else {
+          message((res as any).message || `${actionText}失败`, {
+            type: "error"
+          });
+        }
+      } catch (e) {
+        message("操作异常", { type: "error" });
+      }
+    })
+    .catch(() => {});
+};
 </script>
 
 <template>
@@ -414,7 +449,7 @@ const handleToggleTequan = (row: any) => {
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="280" align="center">
+        <el-table-column label="操作" width="320" align="center">
           <template #default="scope">
             <el-button
               link
@@ -438,6 +473,14 @@ const handleToggleTequan = (row: any) => {
               @click="openIpDialog(scope.row)"
               >绑定IP</el-button
             >
+            <el-button
+              link
+              :type="scope.row.state === 1 ? 'danger' : 'success'"
+              class="op-link"
+              @click="handleToggleState(scope.row)"
+            >
+              {{ scope.row.state === 1 ? "禁用" : "解禁" }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
